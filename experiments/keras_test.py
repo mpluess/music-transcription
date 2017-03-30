@@ -11,13 +11,13 @@ model = Sequential()
 # Dense(64) is a fully-connected layer with 64 hidden units.
 # in the first layer, you must specify the expected input data shape:
 # here, 20-dimensional vectors.
-model.add(Dense(64, input_dim=data_dim, init='uniform'))
+model.add(Dense(64, input_dim=data_dim, kernel_initializer='uniform'))
 model.add(Activation('tanh'))
 model.add(Dropout(0.5))
-model.add(Dense(64, init='uniform'))
+model.add(Dense(64, kernel_initializer='uniform'))
 model.add(Activation('tanh'))
 model.add(Dropout(0.5))
-model.add(Dense(nb_classes, init='uniform'))
+model.add(Dense(nb_classes, kernel_initializer='uniform'))
 model.add(Activation('softmax'))
 
 model.compile(loss='categorical_crossentropy',
@@ -33,7 +33,7 @@ x_test = np.random.random((100, data_dim))
 y_test = np.random.random((100, nb_classes))
 
 model.fit(x_train, y_train,
-          nb_epoch=20,
+          epochs=20,
           batch_size=16)
 
 score = model.evaluate(x_test, y_test, batch_size=16)
