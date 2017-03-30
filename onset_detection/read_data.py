@@ -7,7 +7,7 @@ from xml.etree import ElementTree
 from warnings import warn
 
 
-def read_X(path_to_wav, frame_rate_hz=100, subsampling_step=4):
+def read_X(path_to_wav, subsampling_step, frame_rate_hz=100):
     # scipy.io.wavfile is not able to read 24-bit data hence the need to use this alternative library
     samples, sample_rate = soundfile.read(path_to_wav)
     if len(samples.shape) > 1:
@@ -95,8 +95,8 @@ def _set_onset_label(y, y_start_only, index, dataset):
         y_start_only[start] = 1
 
 
-def read_X_y(path_to_wav, path_to_truth, dataset, truth_format):
-    X_part, length_seconds = read_X(path_to_wav)
+def read_X_y(path_to_wav, path_to_truth, dataset, truth_format, subsampling_step):
+    X_part, length_seconds = read_X(path_to_wav, subsampling_step)
     if X_part is not None:
         if truth_format == 'xml':
             y_part, y_start_only_part = read_y_xml(path_to_truth, length_seconds, dataset)
@@ -106,14 +106,13 @@ def read_X_y(path_to_wav, path_to_truth, dataset, truth_format):
             raise ValueError('Unknown truth format')
 
         if X_part.shape[0] != y_part.shape[0]:
-            raise ValueError(
-                'X_part vs. y_part shape mismatch: ' + str(X_part.shape[0]) + ' != ' + str(y_part.shape[0]))
+            raise ValueError('X_part vs. y_part shape mismatch: ' + str(X_part.shape[0]) + ' != ' + str(y_part.shape[0]))
         return X_part, y_part, y_start_only_part
     else:
         return None, None, None
 
 
-def read_data(active_datasets):
+def read_data(active_datasets, subsampling_step=4):
     # TODO dataset einchecken, damit aenderungen zentral gemacht werden (anderes, privates repo)
     dir_tuples = []
     if 1 in active_datasets:
@@ -179,7 +178,7 @@ def read_data(active_datasets):
     y_start_only_parts = []
     ds_labels = []
     for path_to_wav, path_to_truth, dataset, truth_format in file_tuples:
-        X_part, y_part, y_start_only_part = read_X_y(path_to_wav, path_to_truth, dataset, truth_format)
+        X_part, y_part, y_start_only_part = read_X_y(path_to_wav, path_to_truth, dataset, truth_format, subsampling_step)
         if X_part is not None and y_part is not None and y_start_only_part is not None:
             X_parts.append(X_part)
             y_parts.append(y_part)
