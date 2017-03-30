@@ -1,8 +1,9 @@
 import numpy as np
 
 
-def onset_metric(y, y_start_only, y_predicted, ds_labels, frame_tol=5):
+def onset_metric(y, y_start_only, y_predicted, frame_tol=5):
     """Assumes y is grouped by wav file, sorted by time asc."""
+
     onset_start_indices = np.where(y_start_only == 1)[0]
     # Make sure all onset start indices are indeed labelled as onsets in the actual ground truth y. Otherwise something is off.
     assert len(onset_start_indices) == np.sum(y[onset_start_indices] == 1)
