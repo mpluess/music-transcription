@@ -252,8 +252,8 @@ Effect = namedtuple("Effect", ['fadein','vibrato','tap_slap_pop','bend'])
 def empty_effect():
     return Effect(False,False,0,empty_bend())
 
-def read_effect(file):
-    flags1= ord(file.read(1))
+def read_beat_effect(file):
+    flags1 = ord(file.read(1))
     flags2 = ord(file.read(1))
     fadein = flags1 & 0x10 != 0;
     vibrato = flags1 & 0x02 != 0;
@@ -263,6 +263,22 @@ def read_effect(file):
     downstroke = ord(file.read(1)) if flags1 & 0x40 else 0  # fastness 1 (128th) - 6 (quarters)
     pickstroke = ord(file.read(1)) if flags2 & 0x02 else 0  # (probably also not used) 1 = up, 2 = down
     return Effect(fadein, vibrato, tap_slap_pop, bend)
+
+def read_note_effect(file):
+    flags1 = ord(file.read(1))
+    flags2 = ord(file.read(1))
+    bend = read_bend(file) if flags1 & 0x01 else empty_bend()
+    grace = read_grace(file) if flags1 & 0x10 else ()
+    tremolopicking = ord(file.read(1)) if flags2 & 0x04 else 0 # 1=8th, 2=16th, 3=32th
+    slide = ord(file.read(1)) if flags2 & 0x08 else 0 # tuxguitar knows only true/false and ignores the byte
+    harmonic = ord(file.read(1)) if flags2 & 0x10 else 0  # 1=natural, 2=artificial, 3=tapped, 4=pinch, 5=semi
+    trill = (ord(file.read(1)), ord(file.read(1))) if flags2 & 0x20 else (0,0) # (fret, period) period = 1=16th, 2=32th, 3=64th
+    isHammer = flags1 & 0x02 != 0
+    isLetRing = flags1 & 0x08 != 0
+    isVibrato = flags2 & 0x40 != 0
+    isPalmMute = flags2 & 0x02 != 0
+    isStaccato = flags2 & 0x01 != 0
+    return Effect(isHammer, isVibrato, harmonic, bend)
 
 Bend = namedtuple("Bend", ['points'])
 def empty_bend():
@@ -277,11 +293,21 @@ def read_bend(file):
         time_pos = read_int(file) #pos from prev point. 0-60 and is sixties of the note duration
         v = read_int(file) # value of this ponint
         vibrato = ord(file.read(1)) #0:none, 1:fast, 2:avg, 3:slow
-        points.add((time_pos, v, vibrato))
+        points.append((time_pos, v, vibrato))
     return Bend(points)
 
 def get_last_played_note_on_this_string():
     return 24 # TODO get last played note on this string
+
+def read_grace(file):
+    fret = ord(file.read(1))
+    dynamic = ord(file.read(1))
+    transition = read_byte(file) #0:none, 1:slide,2:bend,3:hammer
+    duration = ord(file.read(1))
+    flags = ord(file.read(1))
+    isDead = flags & 0x01 != 0
+    isOnBeat = flags & 0x02 != 0
+    return (fret, dynamic, transition, duration, isDead, isOnBeat)
 
 Note = namedtuple("Note", ['fret','tied','dead','ghost','dynamic'])
 def read_note(file, track):
@@ -302,7 +328,7 @@ def read_note(file, track):
         file.seek(8, 1) # skip(8)
     file.seek(1, 1)  # skip(1)
 
-    effect = read_effect(file) if flags & 0x08 else empty_effect()  # effect
+    effect = read_note_effect(file) if flags & 0x08 else empty_effect()  # effect
     ghost = (flags & 0x04) != 0  # bit2
     heavyAccentuated = (flags & 0x02) != 0 # bit1
 
@@ -326,7 +352,7 @@ for m in range(measures):
                 times = 8 if enters > 8 else (4 if enters > 4 else (2 if enters > 0 else 0)) # tripplet feel
                 chord = read_chord(file) if flags & 0x02 else empty_chord() # chord diagram
                 text = read_block_string(file) if flags & 0x04 else "" # text
-                effect = read_effect(file) if flags & 0x08 else 0  # effect
+                effect = read_beat_effect(file) if flags & 0x08 else 0  # effect
 
                 if flags & 0x10: # mix change!
                     instrument = read_byte(file)  # number of new instrument. -1 = no change
