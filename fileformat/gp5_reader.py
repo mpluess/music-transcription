@@ -4,16 +4,14 @@
 
 import struct
 import logging
-from collections import namedtuple
+from gp_utils import *
 
 # logging.basicConfig(level=logging.DEBUG) #filename='example.log'
 
 
 class GP5File:
-    G_ENCODING = 'cp1252'
-    GP5_VERSIONS = ['FICHIER GUITAR PRO v5.00', 'FICHIER GUITAR PRO v5.10']
-
     def __init__(self, filename):
+        self.tie_notes = [-1, -1, -1, -1, -1, -1, -1]
         self.file = open(filename, 'rb')
 
         self.file.seek(0, 2)
@@ -21,13 +19,13 @@ class GP5File:
         self.file.seek(0)
 
         # read all data
-        self.__read_version()
-        self.__read_header()
-        self.__read_lyrics()
+        self.version, self.vMinor = self.__read_version()
+        self.header = self.__read_header()
+        self.lyrics = self.__read_lyrics()
         self.__read_print_setup()
         self.__read_meta_info()
         self.__read_midi_channels()
-        some_weird_padding = self.file.seek(42, 1)  # Some weird padding, filled with FFs
+        self.file.seek(42, 1)  # Some weird padding, filled with FFs
         self.nMeasures = self.read_int()
         self.nTracks = self.read_int()
         self.__read_measures()
@@ -41,14 +39,14 @@ class GP5File:
         return struct.unpack('<i', self.file.read(4))[0]  # <i = little-endian LSB to MSB
 
     def read_short(self):
-        return struct.unpack('<h', self.file.read(2))[0]  # <i = little-endian LSB to MSB
+        return struct.unpack('<h', self.file.read(2))[0]  # <h = little-endian LSB to MSB
 
     def read_byte(self):
-        return struct.unpack('<b', self.file.read(1))[0]  # <i = little-endian LSB to MSB
+        return struct.unpack('<b', self.file.read(1))[0]  # <b = little-endian LSB to MSB
 
     def read_string(self):
         s_len = max(ord(self.file.read(1)), 0)
-        return str(self.file.read(s_len), self.G_ENCODING), s_len
+        return str(self.file.read(s_len), G_ENCODING), s_len
 
     def read_block_string(self, block_size=0):
         if block_size == 0:
@@ -61,42 +59,48 @@ class GP5File:
         return s
 
     def read_color(self):  # rgba
-        return (ord(self.file.read(1)), ord(self.file.read(1)), ord(self.file.read(1)), ord(self.file.read(1)))
+        return ord(self.file.read(1)), ord(self.file.read(1)), ord(self.file.read(1)), ord(self.file.read(1))
 
     def __read_version(self):  # 1. Version
-        self.version = self.read_block_string(30)
-        assert self.version in self.GP5_VERSIONS, 'ERROR: invalid version "{0}"'.format(self.version)
-        self.vMinor = 0 if self.version == self.GP5_VERSIONS[0] else 10
+        version = self.read_block_string(30)
+        assert self.version in GP5_VERSIONS, 'ERROR: invalid version "{0}"'.format(self.version)
+        vMinor = 0 if self.version == GP5_VERSIONS[0] else 10
+        return version, vMinor
 
     def __read_header(self):  # 2. Song Info
-        self.title = self.read_block_string()
-        self.subtitle = self.read_block_string()
-        self.interpret = self.read_block_string()
-        self.album = self.read_block_string()
-        self.author_words = self.read_block_string()
-        self.author_music = self.read_block_string()  # new in .gp5
-        self.copyright = self.read_block_string()
-        self.tab_author = self.read_block_string()
-        self.instructions = self.read_block_string()
+        title = self.read_block_string()
+        subtitle = self.read_block_string()
+        interpret = self.read_block_string()
+        album = self.read_block_string()
+        author_words = self.read_block_string()
+        author_music = self.read_block_string()  # new in .gp5
+        copyright = self.read_block_string()
+        tab_author = self.read_block_string()
+        instructions = self.read_block_string()
 
-        self.notes = ""
-        self.notice_lines = self.read_int()
-        logging.debug("read int (notice_lines) '{}', new pos: {}".format(self.notice_lines, self.file.tell()))
-        for i in range(self.notice_lines):
-            self.notes = self.notes + "\n" + self.read_block_string()
+        notes = ""
+        notice_lines = self.read_int()
+        logging.debug("read int (notice_lines) '{}', new pos: {}".format(notice_lines, self.file.tell()))
+        for i in range(notice_lines):
+            notes = notes + "\n" + self.read_block_string()
+
+        return Header(
+            title, subtitle, interpret, album, author_words, author_music, copyright, tab_author, instructions, notes
+        )
 
     def __read_lyrics(self):  # 3. Lyrics
-        self.lyric_track = self.read_int()
-        logging.debug("read int (track) '{}', new pos: {}".format(self.lyric_track, self.file.tell()))
-        self.lyrics = []
+        track = self.read_int()
+        logging.debug("read int (track) '{}', new pos: {}".format(track, self.file.tell()))
+        lines = []
         for i in range(5):  # for each of the 5 possible lines
             bar = self.read_int()
             logging.debug("read int (bar) '{}', new pos: {}".format(bar, self.file.tell()))
             block_size = self.read_int()
             logging.debug("read int (block_size) '{}', new pos: {}".format(block_size, self.file.tell()))
-            s = str(self.file.read(block_size), self.G_ENCODING)
+            s = str(self.file.read(block_size), G_ENCODING)
             logging.debug("read lyric '{}', block_size:{}, new pos: {}".format(s, block_size, self.file.tell()))
-            self.lyrics.append((bar, s))
+            lines.append((bar, s))
+        return Lyrics(track, lines)
 
     # 4. other info
 
@@ -131,26 +135,11 @@ class GP5File:
                 ord(self.file.read(1))  # blank2
             ])
 
-    Measure = namedtuple("Measure", [
-        'numerator',  # Numerator of the (key) signature
-        'denominator',  # Denominator of the (key) signature
-        'repeat_open',  # is this a beginning of a repeat?
-        'repeat_close',  # num of repeats
-        'repeat_alternative',  # num of alternate ending
-        'marker_name',
-        'marker_color',
-        'majKey',
-        'minorKey',
-        'double_bar',
-        'beam8notes',  # "beam eight notes by" array, usually 2 - 2 - 2 - 2
-        'triplet_feel'  # 0: none, 1: eights, 2: 16th
-    ])
-
     def __read_measures(self):  # 5. measures
         self.measures = []
         for i in range(self.nMeasures):
             # init
-            marker_name = majKey = minorKey = 0
+            marker_name = major_key = minor_key = 0
             marker_color = beam8notes = (0, 0, 0, 0)
 
             flags = ord(self.file.read(1))
@@ -165,27 +154,23 @@ class GP5File:
                 marker_color = self.read_color()
             repeat_alternative = ord(self.file.read(1)) if flags & 0x10 else 0
             if flags & 0x40:  # 64 = bit6: Key change
-                majKey = self.read_byte()  # ord(file.read(1))
-                minorKey = self.read_byte()  # ord(file.read(1))
+                major_key = self.read_byte()  # ord(file.read(1))
+                minor_key = self.read_byte()  # ord(file.read(1))
             double_bar = ((flags & 0x80) != 0)  # 128 = bit7: double bar?
 
             if flags & 0x03:  # if 1 or 2 is set (change in measure)
                 beam8notes = self.read_color()  # beam8notes = file.read(4)
-            if not flags & 0x10: # 16 (was) NOT set
+            if not flags & 0x10:  # 16 (was) NOT set
                 unknown = ord(self.file.read(1))  # unknown byte?
 
             triplet_feel = ord(self.file.read(1))
             unknown2 = ord(self.file.read(1))  # unknown 2
 
-            self.measures.append(self.Measure(
+            self.measures.append(Measure(
                 numerator, denominator, repeat_open, repeat_close, repeat_alternative,
-                marker_name, marker_color, majKey, minorKey, double_bar, beam8notes, triplet_feel
+                marker_name, marker_color, major_key, minor_key, double_bar, beam8notes, triplet_feel
             ))
-            #print(numerator, denominator, repeat_open, repeat_close, repeat_alternative, marker_name, marker_color, majKey, minorKey, double_bar, beam8notes, unknown, triplet_feel, unknown2)
-
-    Track = namedtuple("Track", [
-        'name', 'nStrings', 'tuning', 'midiPort', 'channel', 'channelE', 'frets', 'capo', 'color'
-    ])
+            # print(numerator, denominator, repeat_open, repeat_close, repeat_alternative, marker_name, marker_color, major_key, minor_key, double_bar, beam8notes, unknown, triplet_feel, unknown2)
 
     def __read_tracks(self):  # 6. Tracks
         self.tracklist = []
@@ -206,7 +191,7 @@ class GP5File:
                 self.read_int(),
                 self.read_int()
             )
-            midiPort = self.read_int()
+            midi_port = self.read_int()
             channel = self.read_int()
             channelE = self.read_int()
             frets = self.read_int()
@@ -218,12 +203,10 @@ class GP5File:
                 str1 = self.read_block_string()
                 str2 = self.read_block_string()
 
-            self.tracklist.append(self.Track(
-                name, nStrings, tuning, midiPort, channel, channelE, frets, capo, color
+            self.tracklist.append(Track(
+                name, nStrings, tuning, midi_port, channel, channelE, frets, capo, color
             ))
-            #print('"' + name + '":', nStrings, tuning, midiPort, channel, channelE, frets, capo, color)
-
-    Beat = namedtuple("Beat", ['notes', 'duration', 'pause', 'empty', 'dotted', 'ntuple_enters', 'ntuple_times', 'chord', 'text', 'effect', 'mix_change'])
+            # print('"' + name + '":', nStrings, tuning, midi_port, channel, channelE, frets, capo, color)
 
     def __read_notes(self):
         self.notes = []
@@ -233,7 +216,7 @@ class GP5File:
                 self.notes[m].append(([],[]))
                 for v in range(2):  # every track has two voices
                     nBeats = self.read_int()
-                    #print('m:{}, track:{}, v:{}, beats:{}'.format(m,t,v,nBeats))
+                    # print('m:{}, track:{}, v:{}, beats:{}'.format(m,t,v,nBeats))
                     for b in range(nBeats):
                         flags = ord(self.file.read(1))
                         status = ord(self.file.read(1)) if flags & 0x40 else 0x01  # 64 = bit6: 0x00 = empty, 0x02 = rest
@@ -243,35 +226,30 @@ class GP5File:
                         dotted = (flags & 0x01) != 0
                         ntuple_enters = self.read_int() if flags & 0x20 else 0  # n-tuple
                         ntuple_times = 8 if ntuple_enters > 8 else (4 if ntuple_enters > 4 else (2 if ntuple_enters > 0 else 0))  # tripplet feel
-                        chord = self.__read_chord() if flags & 0x02 else self.empty_chord()  # chord diagram
+                        chord = self.__read_chord() if flags & 0x02 else None  # chord diagram
                         text = self.read_block_string() if flags & 0x04 else ""  # text
                         effect = self.__read_beat_effect() if flags & 0x08 else 0  # effect
                         mix_change = self.__read_mix_change() if flags & 0x10 else None  # mix change!
 
-                        stringFlags = ord(self.file.read(1))
-                        #print('\tstring flags:', stringFlags, self.tracklist[t].nStrings)
+                        string_flags = ord(self.file.read(1))
+                        # print('\tstring flags:', string_flags, self.tracklist[t].nStrings)
                         notes = []
-                        for i in range(6, -1, -1):  # for every string
-                            if stringFlags & (1 << i) and (6 - i <= self.tracklist[t].nStrings):
-                                notes.append(self.__read_note())
+                        for i in range(6, -1, -1):  # for every string 6..0
+                            if string_flags & (1 << i) and (6 - i <= self.tracklist[t].nStrings):
+                                notes.append(self.__read_note(i))
                                 #print(notes[len(notes)-1])
 
                         self.file.seek(1, 1)  # skip(1)
-                        skipFlag = ord(self.file.read(1))
-                        if skipFlag & 0x08:
+                        skip_flag = ord(self.file.read(1))
+                        if skip_flag & 0x08:
                             self.file.seek(1, 1)  # skip(1)
 
-                        self.notes[m][t][v].append(self.Beat(
+                        self.notes[m][t][v].append(Beat(
                             notes, duration, pause, empty, dotted, ntuple_enters, ntuple_times, chord, text, effect, mix_change
                         ))
                         # return (!voice.isEmpty() ? duration.getTime() : 0 );
 
                 self.file.seek(1, 1)  # skip(1)
-
-    Chord = namedtuple("Chord", ['base_fret', 'fretArr'])
-
-    def empty_chord(self):
-        return self.Chord(0, [-1, -1, -1, -1, -1, -1, -1])
 
     def __read_chord(self):
         self.file.seek(17, 1)  # skip(17)
@@ -282,7 +260,7 @@ class GP5File:
         for f in range(7):
             frets[f] = self.read_int()  # -1 = unplayed, 0 = no fret
             self.file.seek(32, 1)  # skip(32)
-        return self.Chord(basefret, frets)
+        return Chord(basefret, frets)
 
     def __read_chord_gp4style(self):
         flags = ord(self.file.read(1))  # 0x01 = gp4 chord...
@@ -320,13 +298,8 @@ class GP5File:
         blanks = self.file.read(1)  # gp3-compatibility
         for f in range(7):
             fingering = self.read_byte()  # -2 unknown, -1 X, 0: thumb, 1: index,... 4:little
-        showFingering = ord(self.file.read(1))  # 1 = do display, 0 = mask
-        return self.Chord(basefret, [-1, -1, -1, -1, -1, -1, -1])
-
-    Effect = namedtuple("Effect", ['fadein', 'vibrato', 'tap_slap_pop', 'bend'])
-
-    def empty_effect(self):
-        return self.Effect(False, False, 0, self.empty_bend())
+        show_fingering = ord(self.file.read(1))  # 1 = do display, 0 = mask
+        return Chord(basefret, [-1, -1, -1, -1, -1, -1, -1])
 
     def __read_beat_effect(self):
         flags1 = ord(self.file.read(1))
@@ -334,16 +307,11 @@ class GP5File:
         fadein = flags1 & 0x10 != 0
         vibrato = flags1 & 0x02 != 0
         tap_slap_pop = ord(self.file.read(1)) if flags1 & 0x20 else 0  # 1:tap,2:slap,3:pop
-        bend = self.__read_bend() if flags2 & 0x04 else self.empty_bend()
+        bend = self.__read_bend() if flags2 & 0x04 else None
         upstroke = ord(self.file.read(1)) if flags1 & 0x40 else 0  # fastness 1 (128th) - 6 (quarters)
         downstroke = ord(self.file.read(1)) if flags1 & 0x40 else 0  # fastness 1 (128th) - 6 (quarters)
         pickstroke = ord(self.file.read(1)) if flags2 & 0x02 else 0  # (probably also not used) 1 = up, 2 = down
-        return self.Effect(fadein, vibrato, tap_slap_pop, bend)
-
-    Bend = namedtuple("Bend", ['points'])
-
-    def empty_bend(self):
-        return self.Bend([])
+        return Effect(fadein, vibrato, tap_slap_pop, bend)
 
     def __read_bend(self):
         type = ord(self.file.read(1))  # http://dguitar.sourceforge.net/GP4format.html#Bends
@@ -355,18 +323,7 @@ class GP5File:
             v = self.read_int()  # value of this point
             vibrato = ord(self.file.read(1))  # 0:none, 1:fast, 2:avg, 3:slow
             points.append((time_pos, v, vibrato))
-        return self.Bend(points)
-
-    MixChange = namedtuple('MixChange', [
-        'instrument',
-        'tempo', 'tempo_duration',
-        'volume', 'volume_duration',
-        'pan', 'pan_duration',
-        'chorus', 'chorus_duration',
-        'reverb', 'reverb_duration',
-        'phaser', 'phaser_duration',
-        'tremolo', 'tremolo_duration'
-    ])
+        return Bend(points)
 
     def __read_mix_change(self):
         instrument = self.read_byte()  # number of new instrument. -1 = no change
@@ -398,14 +355,12 @@ class GP5File:
         str1 = self.read_block_string() if self.vMinor > 0 else ""  # ?
         str2 = self.read_block_string() if self.vMinor > 0 else ""  # ?
 
-        return self.MixChange(
+        return MixChange(
             instrument, tempo, tempo_duration, volume, volume_duration, pan, pan_duration, chorus, chorus_duration,
             reverb, reverb_duration, phaser, phaser_duration, tremolo, tremolo_duration
         )
 
-    Note = namedtuple("Note", ['fret', 'tied', 'dead', 'ghost', 'dynamic'])
-
-    def __read_note(self):
+    def __read_note(self, string):
         flags = ord(self.file.read(1))
 
         accentuated = (flags & 0x40) != 0  # bit6
@@ -414,40 +369,38 @@ class GP5File:
         dead = (type == 0x03)
         dynamic = ord(self.file.read(1)) if flags & 0x10 else 6  # 1:ppp, 2:pp,3:p,4:mp,5:mf,6:?f?,7:f,8:ff,9:fff
         fret = ord(self.file.read(1)) if flags & 0x20 else 0
-        fretVal = self.__get_last_played_note_on_this_string() if tied else fret  # ToDo: get last played note on this string
-        fretVal = fretVal if fretVal >= 0 and fretVal < 100 else 0  # set to zero if out of bounds
-        fingeringLeft = self.read_byte() if flags & 0x80 else -1  # -1=nothing, 0:thumb, 1:index,...
-        fingeringRight = self.read_byte() if flags & 0x80 else -1  # -1=nothing, 0:thumb, 1:index,...
+        fret_val = self.tie_notes[string] if tied else fret
+        fret_val = fret_val if 0 <= fret_val < 100 else 0  # set to zero if out of bounds
+        self.tie_notes[string] = fret_val if not tied else self.tie_notes[string]
+        fingering_left = self.read_byte() if flags & 0x80 else -1  # -1=nothing, 0:thumb, 1:index,...
+        fingering_right = self.read_byte() if flags & 0x80 else -1  # -1=nothing, 0:thumb, 1:index,...
 
-        if (flags & 0x01):  # bit1
+        if flags & 0x01:  # bit1
             self.file.seek(8, 1)  # skip(8)
         self.file.seek(1, 1)  # skip(1)
 
-        effect = self.__read_note_effect() if flags & 0x08 else self.empty_effect()  # effect
+        effect = self.__read_note_effect() if flags & 0x08 else None  # effect
         ghost = (flags & 0x04) != 0  # bit2
-        heavyAccentuated = (flags & 0x02) != 0  # bit1
+        heavy_accentuated = (flags & 0x02) != 0  # bit1
 
-        return self.Note(fretVal, tied, dead, ghost, dynamic)
-
-    def __get_last_played_note_on_this_string(self):
-        return 24  # TODO get last played note on this string
+        return Note(fret_val, tied, dead, ghost, dynamic)
 
     def __read_note_effect(self):
         flags1 = ord(self.file.read(1))
         flags2 = ord(self.file.read(1))
-        bend = self.__read_bend() if flags1 & 0x01 else self.empty_bend()
+        bend = self.__read_bend() if flags1 & 0x01 else None
         grace = self.__read_grace() if flags1 & 0x10 else ()
         tremolopicking = ord(self.file.read(1)) if flags2 & 0x04 else 0  # 1=8th, 2=16th, 3=32th
         slide = ord(self.file.read(1)) if flags2 & 0x08 else 0  # tuxguitar knows only true/false and ignores the byte
         harmonic = ord(self.file.read(1)) if flags2 & 0x10 else 0  # 1=natural, 2=artificial, 3=tapped, 4=pinch, 5=semi
-        trill = (ord(self.file.read(1)), ord(self.file.read(1))) if flags2 & 0x20 else (
-        0, 0)  # (fret, period) period = 1=16th, 2=32th, 3=64th
-        isHammer = flags1 & 0x02 != 0
-        isLetRing = flags1 & 0x08 != 0
-        isVibrato = flags2 & 0x40 != 0
-        isPalmMute = flags2 & 0x02 != 0
-        isStaccato = flags2 & 0x01 != 0
-        return self.Effect(isHammer, isVibrato, harmonic, bend)
+        trill = (ord(self.file.read(1)), ord(self.file.read(1))) if flags2 & 0x20 \
+            else (0, 0)  # (fret, period) period = 1=16th, 2=32th, 3=64th
+        is_hammer = flags1 & 0x02 != 0
+        is_let_ring = flags1 & 0x08 != 0
+        is_vibrato = flags2 & 0x40 != 0
+        is_palm_mute = flags2 & 0x02 != 0
+        is_staccato = flags2 & 0x01 != 0
+        return Effect(is_hammer, is_vibrato, harmonic, bend)
 
     def __read_grace(self):
         fret = ord(self.file.read(1))
@@ -455,6 +408,6 @@ class GP5File:
         transition = self.read_byte()  # 0:none, 1:slide,2:bend,3:hammer
         duration = ord(self.file.read(1))
         flags = ord(self.file.read(1))
-        isDead = flags & 0x01 != 0
-        isOnBeat = flags & 0x02 != 0
-        return (fret, dynamic, transition, duration, isDead, isOnBeat)
+        is_dead = flags & 0x01 != 0
+        is_on_beat = flags & 0x02 != 0
+        return fret, dynamic, transition, duration, is_dead, is_on_beat
