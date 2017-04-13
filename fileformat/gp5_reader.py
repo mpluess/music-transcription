@@ -23,16 +23,16 @@ class GP5File:
         self.header = self.__read_header()
         self.lyrics = self.__read_lyrics()
         self.__read_print_setup()
-        self.__read_meta_info()
-        self.__read_midi_channels()
+        self.tempo, self.key, self.octave = self.__read_meta_info()
+        self.midi_channels = self.__read_midi_channels()
         self.file.seek(42, 1)  # Some weird padding, filled with FFs
         self.nMeasures = self.read_int()
         self.nTracks = self.read_int()
-        self.__read_measures()
-        self.__read_tracks()
+        self.measures = self.__read_measures()
+        self.tracks = self.__read_tracks()
         self.file.seek(1 if self.vMinor > 0 else 2, 1)  # skip (vMinor ? 1 : 2)
+        self.notes = self.__read_notes()
 
-        self.__read_notes()
         self.file.close()
 
     def read_int(self):
@@ -63,8 +63,8 @@ class GP5File:
 
     def __read_version(self):  # 1. Version
         version = self.read_block_string(30)
-        assert self.version in GP5_VERSIONS, 'ERROR: invalid version "{0}"'.format(self.version)
-        vMinor = 0 if self.version == GP5_VERSIONS[0] else 10
+        assert version in GP5_VERSIONS, 'ERROR: invalid version "{0}"'.format(version)
+        vMinor = 0 if version == GP5_VERSIONS[0] else 10
         return version, vMinor
 
     def __read_header(self):  # 2. Song Info
@@ -105,25 +105,27 @@ class GP5File:
     # 4. other info
 
     def __read_print_setup(self):  # 4.1 print setup
-        self.print_setup = self.file.read(49) if self.vMinor > 0 else self.file.read(30)
-        self.print_setup_lines = []
+        print_setup = self.file.read(49) if self.vMinor > 0 else self.file.read(30)
+        print_setup_lines = []
         for i in range(11):
-            self.print_setup_lines.append((self.file.read(4), self.read_string()))
+            print_setup_lines.append((self.file.read(4), self.read_string()))
+        return print_setup, print_setup_lines
 
     def __read_meta_info(self):  # 4.2 tempo, key, octave
-        self.tempo = self.read_int()
-        logging.debug("read int (tempo) '{}', new pos: {}".format(self.tempo, self.file.tell()))
+        tempo = self.read_int()
+        logging.debug("read int (tempo) '{}', new pos: {}".format(tempo, self.file.tell()))
 
         if self.vMinor > 0:
             self.file.seek(1, 1)  # don't know what is skipped here
 
-        self.key = self.read_byte()  # ord(file.read(1))
-        self.octave = self.read_int()  # alternative: skip 3, then read byte
+        key = self.read_byte()  # ord(file.read(1))
+        octave = self.read_int()  # alternative: skip 3, then read byte
+        return tempo, key, octave
 
     def __read_midi_channels(self):  # 4.3 Midi Channels
-        self.midi_channels = []
+        midi_channels = []
         for i in range(64):
-            self.midi_channels.append([
+            midi_channels.append([
                 self.read_int(),  # instrument
                 ord(self.file.read(1)),  # volume
                 ord(self.file.read(1)),  # balance
@@ -134,9 +136,10 @@ class GP5File:
                 ord(self.file.read(1)),  # blank1
                 ord(self.file.read(1))  # blank2
             ])
+        return midi_channels
 
     def __read_measures(self):  # 5. measures
-        self.measures = []
+        measures = []
         for i in range(self.nMeasures):
             # init
             marker_name = major_key = minor_key = 0
@@ -166,14 +169,15 @@ class GP5File:
             triplet_feel = ord(self.file.read(1))
             unknown2 = ord(self.file.read(1))  # unknown 2
 
-            self.measures.append(Measure(
+            measures.append(Measure(
                 numerator, denominator, repeat_open, repeat_close, repeat_alternative,
                 marker_name, marker_color, major_key, minor_key, double_bar, beam8notes, triplet_feel
             ))
             # print(numerator, denominator, repeat_open, repeat_close, repeat_alternative, marker_name, marker_color, major_key, minor_key, double_bar, beam8notes, unknown, triplet_feel, unknown2)
+        return measures
 
     def __read_tracks(self):  # 6. Tracks
-        self.tracklist = []
+        tracks = []
         for i in range(self.nTracks):
             flags = ord(self.file.read(1))
 
@@ -203,17 +207,18 @@ class GP5File:
                 str1 = self.read_block_string()
                 str2 = self.read_block_string()
 
-            self.tracklist.append(Track(
+            tracks.append(Track(
                 name, nStrings, tuning, midi_port, channel, channelE, frets, capo, color
             ))
             # print('"' + name + '":', nStrings, tuning, midi_port, channel, channelE, frets, capo, color)
+        return tracks
 
     def __read_notes(self):
-        self.notes = []
+        notes = []
         for m in range(self.nMeasures):
-            self.notes.append([])
+            notes.append([])
             for t in range(self.nTracks):
-                self.notes[m].append(([],[]))
+                notes[m].append(([],[]))
                 for v in range(2):  # every track has two voices
                     nBeats = self.read_int()
                     # print('m:{}, track:{}, v:{}, beats:{}'.format(m,t,v,nBeats))
@@ -232,11 +237,11 @@ class GP5File:
                         mix_change = self.__read_mix_change() if flags & 0x10 else None  # mix change!
 
                         string_flags = ord(self.file.read(1))
-                        # print('\tstring flags:', string_flags, self.tracklist[t].nStrings)
-                        notes = []
+                        # print('\tstring flags:', string_flags, self.tracks[t].nStrings)
+                        notes_arr = []
                         for i in range(6, -1, -1):  # for every string 6..0
-                            if string_flags & (1 << i) and (6 - i <= self.tracklist[t].nStrings):
-                                notes.append(self.__read_note(i))
+                            if string_flags & (1 << i) and (6 - i <= self.tracks[t].nStrings):
+                                notes_arr.append(self.__read_note(i))
                                 #print(notes[len(notes)-1])
 
                         self.file.seek(1, 1)  # skip(1)
@@ -244,12 +249,13 @@ class GP5File:
                         if skip_flag & 0x08:
                             self.file.seek(1, 1)  # skip(1)
 
-                        self.notes[m][t][v].append(Beat(
-                            notes, duration, pause, empty, dotted, ntuple_enters, ntuple_times, chord, text, effect, mix_change
+                        notes[m][t][v].append(Beat(
+                            notes_arr, duration, pause, empty, dotted, ntuple_enters, ntuple_times, chord, text, effect, mix_change
                         ))
                         # return (!voice.isEmpty() ? duration.getTime() : 0 );
 
                 self.file.seek(1, 1)  # skip(1)
+        return notes
 
     def __read_chord(self):
         self.file.seek(17, 1)  # skip(17)

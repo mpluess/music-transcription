@@ -5,7 +5,7 @@ gp5file = GP5File("test.gp5")
 for m in gp5file.measures:
     print(m)
 print()
-for t in gp5file.tracklist:
+for t in gp5file.tracks:
     print(t)
 
 print()

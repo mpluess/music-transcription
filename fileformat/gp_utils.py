@@ -2,6 +2,19 @@ from collections import namedtuple
 
 G_ENCODING = 'cp1252'
 GP5_VERSIONS = ['FICHIER GUITAR PRO v5.00', 'FICHIER GUITAR PRO v5.10']
+GP_PAGE_SETUP_LINES = [
+    "%TITLE%",
+    "%SUBTITLE%",
+    "%ARTIST%",
+    "%ALBUM%",
+    "Words by %WORDS%",
+    "Music by %MUSIC%",
+    "Words & Music by %WORDSMUSIC%",
+    "Copyright %COPYRIGHT%",
+    "All Rights Reserved - International Copyright Secured",
+    "Page %N%/%P%",
+    "Moderate"
+]
 
 Header = namedtuple("Header", [
     'title', 'subtitle', 'interpret', 'album', 'author_words', 'author_music',
