@@ -46,7 +46,7 @@ def read_y_xml(path_to_xml, length_seconds, dataset, frame_rate_hz=100):
                     if event_child.tag == 'onsetSec':
                         onset_time = float(event_child.text)
                         index = _onset_index(onset_time, frame_rate_hz)
-                        _set_onset_label_orig(y, y_actual_onset_only, index)
+                        _set_onset_label_orig_with_neighbors(y, y_actual_onset_only, index)
             break
 
     return y, y_actual_onset_only
@@ -60,7 +60,7 @@ def read_y_csv(path_to_csv, length_seconds, dataset, frame_rate_hz=100):
             line_split = line.rstrip().split(',')
             onset_time = float(line_split[0])
             index = _onset_index(onset_time, frame_rate_hz)
-            _set_onset_label_orig(y, y_actual_onset_only, index)
+            _set_onset_label_orig_with_neighbors(y, y_actual_onset_only, index)
 
     return y, y_actual_onset_only
 
