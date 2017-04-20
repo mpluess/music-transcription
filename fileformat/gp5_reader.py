@@ -142,8 +142,9 @@ class GP5File:
         measures = []
         for i in range(self.nMeasures):
             # init
-            marker_name = major_key = minor_key = 0
+            marker_name = ""
             marker_color = beam8notes = (0, 0, 0, 0)
+            major_key = minor_key = 0
 
             flags = ord(self.file.read(1))
 
@@ -224,33 +225,37 @@ class GP5File:
                     # print('m:{}, track:{}, v:{}, beats:{}'.format(m,t,v,nBeats))
                     for b in range(nBeats):
                         flags = ord(self.file.read(1))
-                        status = ord(self.file.read(1)) if flags & 0x40 else 0x01  # 64 = bit6: 0x00 = empty, 0x02 = rest
-                        duration = self.read_byte()  # ... -1=half, 0=quarter, 1=eigth, ...
+                        dotted = (flags & 0x01) != 0
+                        status = ord(self.file.read(1)) if flags & 0x40 else 0x01  # 64=bit6: 0x00=empty, 0x02=rest
+                        duration = self.read_byte()  # -2=whole, -1=half, 0=quarter, 1=eighth, ...
                         pause = (status == 0x02)
                         empty = (status == 0x00)
-                        dotted = (flags & 0x01) != 0
                         ntuple_enters = self.read_int() if flags & 0x20 else 0  # n-tuple
-                        ntuple_times = 8 if ntuple_enters > 8 else (4 if ntuple_enters > 4 else (2 if ntuple_enters > 0 else 0))  # tripplet feel
+                        ntuple_times = 8 if ntuple_enters > 8 else \
+                            (4 if ntuple_enters > 4 else (2 if ntuple_enters > 0 else 0))  # triplet feel
                         chord = self.__read_chord() if flags & 0x02 else None  # chord diagram
                         text = self.read_block_string() if flags & 0x04 else ""  # text
-                        effect = self.__read_beat_effect() if flags & 0x08 else 0  # effect
+                        effect = self.__read_beat_effect() if flags & 0x08 else None  # effect
                         mix_change = self.__read_mix_change() if flags & 0x10 else None  # mix change!
 
                         string_flags = ord(self.file.read(1))
                         # print('\tstring flags:', string_flags, self.tracks[t].nStrings)
                         notes_arr = []
-                        for i in range(6, -1, -1):  # for every string 6..0
+                        for i in range(6, -1, -1):  # for every string 6..0  6 = high E, 1 = low E, 0 = low B
                             if string_flags & (1 << i) and (6 - i <= self.tracks[t].nStrings):
                                 notes_arr.append(self.__read_note(i))
                                 #print(notes[len(notes)-1])
+                            else:
+                                notes_arr.append(None)
 
                         self.file.seek(1, 1)  # skip(1)
                         skip_flag = ord(self.file.read(1))
                         if skip_flag & 0x08:
                             self.file.seek(1, 1)  # skip(1)
 
+                        ntuple_feel = (ntuple_enters, ntuple_times)
                         notes[m][t][v].append(Beat(
-                            notes_arr, duration, pause, empty, dotted, ntuple_enters, ntuple_times, chord, text, effect, mix_change
+                            notes_arr, duration, pause, empty, dotted, ntuple_feel, chord, text, effect, mix_change
                         ))
                         # return (!voice.isEmpty() ? duration.getTime() : 0 );
 
@@ -265,8 +270,8 @@ class GP5File:
         frets = []
         for f in range(7):
             frets[f] = self.read_int()  # -1 = unplayed, 0 = no fret
-            self.file.seek(32, 1)  # skip(32)
-        return Chord(basefret, frets)
+        self.file.seek(32, 1)  # skip(32)
+        return Chord(name, basefret, frets)
 
     def __read_chord_gp4style(self):
         flags = ord(self.file.read(1))  # 0x01 = gp4 chord...
@@ -305,7 +310,7 @@ class GP5File:
         for f in range(7):
             fingering = self.read_byte()  # -2 unknown, -1 X, 0: thumb, 1: index,... 4:little
         show_fingering = ord(self.file.read(1))  # 1 = do display, 0 = mask
-        return Chord(basefret, [-1, -1, -1, -1, -1, -1, -1])
+        return Chord(name, basefret, [-1, -1, -1, -1, -1, -1, -1])
 
     def __read_beat_effect(self):
         flags1 = ord(self.file.read(1))
@@ -317,7 +322,7 @@ class GP5File:
         upstroke = ord(self.file.read(1)) if flags1 & 0x40 else 0  # fastness 1 (128th) - 6 (quarters)
         downstroke = ord(self.file.read(1)) if flags1 & 0x40 else 0  # fastness 1 (128th) - 6 (quarters)
         pickstroke = ord(self.file.read(1)) if flags2 & 0x02 else 0  # (probably also not used) 1 = up, 2 = down
-        return Effect(fadein, vibrato, tap_slap_pop, bend)
+        return BeatEffect(fadein, vibrato, tap_slap_pop, bend)
 
     def __read_bend(self):
         type = ord(self.file.read(1))  # http://dguitar.sourceforge.net/GP4format.html#Bends
@@ -370,7 +375,7 @@ class GP5File:
         flags = ord(self.file.read(1))
 
         accentuated = (flags & 0x40) != 0  # bit6
-        type = ord(self.file.read(1)) if flags & 0x20 else 0  # normal, ghost(dead), tied
+        type = ord(self.file.read(1)) if flags & 0x20 else 0  # 1:normal, 2:tied, 3:dead
         tied = (type == 0x02)
         dead = (type == 0x03)
         dynamic = ord(self.file.read(1)) if flags & 0x10 else 6  # 1:ppp, 2:pp,3:p,4:mp,5:mf,6:?f?,7:f,8:ff,9:fff
@@ -389,24 +394,25 @@ class GP5File:
         ghost = (flags & 0x04) != 0  # bit2
         heavy_accentuated = (flags & 0x02) != 0  # bit1
 
-        return Note(fret_val, tied, dead, ghost, dynamic)
+        return Note(fret_val, tied, dead, ghost, dynamic, accentuated, heavy_accentuated, effect)
 
     def __read_note_effect(self):
         flags1 = ord(self.file.read(1))
         flags2 = ord(self.file.read(1))
         bend = self.__read_bend() if flags1 & 0x01 else None
-        grace = self.__read_grace() if flags1 & 0x10 else ()
-        tremolopicking = ord(self.file.read(1)) if flags2 & 0x04 else 0  # 1=8th, 2=16th, 3=32th
+        grace = self.__read_grace() if flags1 & 0x10 else None
+        tremolo_picking = ord(self.file.read(1)) if flags2 & 0x04 else 0  # 1=8th, 2=16th, 3=32th
         slide = ord(self.file.read(1)) if flags2 & 0x08 else 0  # tuxguitar knows only true/false and ignores the byte
         harmonic = ord(self.file.read(1)) if flags2 & 0x10 else 0  # 1=natural, 2=artificial, 3=tapped, 4=pinch, 5=semi
         trill = (ord(self.file.read(1)), ord(self.file.read(1))) if flags2 & 0x20 \
-            else (0, 0)  # (fret, period) period = 1=16th, 2=32th, 3=64th
+            else None  # (fret, period) period = 1=16th, 2=32th, 3=64th
         is_hammer = flags1 & 0x02 != 0
         is_let_ring = flags1 & 0x08 != 0
         is_vibrato = flags2 & 0x40 != 0
         is_palm_mute = flags2 & 0x02 != 0
         is_staccato = flags2 & 0x01 != 0
-        return Effect(is_hammer, is_vibrato, harmonic, bend)
+        return NoteEffect(is_hammer, is_let_ring, is_vibrato, is_palm_mute, is_staccato,
+                          tremolo_picking, slide, harmonic, trill, bend, grace)
 
     def __read_grace(self):
         fret = ord(self.file.read(1))
@@ -416,4 +422,4 @@ class GP5File:
         flags = ord(self.file.read(1))
         is_dead = flags & 0x01 != 0
         is_on_beat = flags & 0x02 != 0
-        return fret, dynamic, transition, duration, is_dead, is_on_beat
+        return Grace(fret, dynamic, transition, duration, is_dead, is_on_beat)
