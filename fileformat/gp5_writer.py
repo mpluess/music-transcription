@@ -292,7 +292,7 @@ def _write_note(file, note):
     flags |= 0x04 if note.ghost else 0x00
     flags |= 0x08 if note.effect is not None else 0x00
     flags |= 0x10 if 0 < note.dynamic < 10 else 0x00  # 1:ppp, 9:fff
-    flags |= 0x20 if note.tied or note.dead or note.fret > 0 else 0x00
+    flags |= 0x20 if note.tied or note.dead or 0 <= note.fret <= 100 else 0x00
     flags |= 0x40 if note.accentuated else 0x00
 
     _write_unsigned_byte(file, flags)

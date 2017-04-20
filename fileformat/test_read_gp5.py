@@ -1,6 +1,6 @@
-from gp5_reader import GP5File # imports all functions and variables
+from gp5_reader import GP5File
 
-gp5file = GP5File("test.gp5")
+gp5file = GP5File("test.gp5")  # GP5File("C:/Users/Silvan/Desktop/test.gp5")
 
 for m in gp5file.measures:
     print(m)
