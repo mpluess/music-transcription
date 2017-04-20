@@ -29,8 +29,8 @@ Measure = namedtuple("Measure", [
     'repeat_open',  # is this a beginning of a repeat?
     'repeat_close',  # num of repeats
     'repeat_alternative',  # num of alternate ending
-    'marker_name',
-    'marker_color',
+    'marker_name',  # String
+    'marker_color',  # 4-tuple
     'majKey',
     'minorKey',
     'double_bar',
@@ -42,14 +42,18 @@ Track = namedtuple("Track", [
     'name', 'nStrings', 'tuning', 'midiPort', 'channel', 'channelE', 'frets', 'capo', 'color'
 ])
 
+
+def beat(notes, duration=0, pause=False, empty=False, dotted=False,
+         ntuple_feel=(0, 0), chord=None, text="", effect=None, mix_change=None):
+    return Beat(notes, duration, pause, empty, dotted, ntuple_feel, chord, text, effect, mix_change)
+
 Beat = namedtuple("Beat", [
-    'notes', 'duration', 'pause', 'empty', 'dotted', 'ntuple_enters', 'ntuple_times',
-    'chord', 'text', 'effect', 'mix_change'
+    'notes', 'duration', 'pause', 'empty', 'dotted', 'ntuple_feel', 'chord', 'text', 'effect', 'mix_change'
 ])
 
-Chord = namedtuple("Chord", ['base_fret', 'fretArr'])
+Chord = namedtuple("Chord", ['name', 'base_fret', 'fretArr'])
 
-Effect = namedtuple("Effect", ['fadein', 'vibrato', 'tap_slap_pop', 'bend'])
+BeatEffect = namedtuple("BeatEffect", ['fadein', 'vibrato', 'tap_slap_pop', 'bend'])
 
 Bend = namedtuple("Bend", ['points'])
 
@@ -64,15 +68,30 @@ MixChange = namedtuple('MixChange', [
     'tremolo', 'tremolo_duration'
 ])
 
-Note = namedtuple("Note", ['fret', 'tied', 'dead', 'ghost', 'dynamic'])
+
+def note(fret=0, tied=False, dead=False, ghost=False, dynamic=6, acc=False, heavy_acc=False, effect=None):
+    return Note(fret, tied, dead, ghost, dynamic, acc, heavy_acc, effect)
+
+Note = namedtuple("Note", [
+    'fret', 'tied', 'dead', 'ghost', 'dynamic', 'accentuated', 'heavy_accentuated', 'effect'
+])
+
+NoteEffect = namedtuple("NoteEffect", [
+    'is_hammer', 'is_let_ring', 'is_vibrato', 'is_palm_mute', 'is_staccato',
+    'tremolo_picking', 'slide', 'harmonic', 'trill', 'bend', 'grace'
+])
+
+Grace = namedtuple("Grace", [
+    'fret', 'dynamic', 'transition', 'duration', 'is_dead', 'is_on_beat'
+])
 
 
 def empty_chord():
     return Chord(0, [-1, -1, -1, -1, -1, -1, -1])
 
 
-def empty_effect():
-    return Effect(False, False, 0, empty_bend())
+def empty_beat_effect():
+    return BeatEffect(False, False, 0, empty_bend())
 
 
 def empty_bend():
