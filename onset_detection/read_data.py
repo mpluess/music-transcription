@@ -32,7 +32,7 @@ def read_X(path_to_wav, frame_rate_hz, expected_sample_rate, subsampling_step):
     return X, offset / sample_rate
 
 
-def read_y_xml(path_to_xml, length_seconds, dataset, frame_rate_hz=100):
+def read_y_xml(path_to_xml, length_seconds, frame_rate_hz, dataset):
     tree = ElementTree.parse(path_to_xml)
     root = tree.getroot()
     y = _init_y(length_seconds, frame_rate_hz)
@@ -47,12 +47,13 @@ def read_y_xml(path_to_xml, length_seconds, dataset, frame_rate_hz=100):
                         onset_time = float(event_child.text)
                         index = _onset_index(onset_time, frame_rate_hz)
                         _set_onset_label_orig_with_neighbors(y, y_actual_onset_only, index)
+                        # _set_onset_label_adjusted_with_neighbors(y, y_actual_onset_only, index, dataset)
             break
 
     return y, y_actual_onset_only
 
 
-def read_y_csv(path_to_csv, length_seconds, dataset, frame_rate_hz=100):
+def read_y_csv(path_to_csv, length_seconds, frame_rate_hz, dataset):
     y = _init_y(length_seconds, frame_rate_hz)
     y_actual_onset_only = _init_y(length_seconds, frame_rate_hz)
     with open(path_to_csv) as f:
@@ -61,6 +62,7 @@ def read_y_csv(path_to_csv, length_seconds, dataset, frame_rate_hz=100):
             onset_time = float(line_split[0])
             index = _onset_index(onset_time, frame_rate_hz)
             _set_onset_label_orig_with_neighbors(y, y_actual_onset_only, index)
+            # _set_onset_label_adjusted_with_neighbors(y, y_actual_onset_only, index, dataset)
 
     return y, y_actual_onset_only
 
@@ -86,7 +88,24 @@ def _set_onset_label_orig_with_neighbors(y, y_actual_onset_only, index):
     y_actual_onset_only[index] = 1
 
 
+def _set_onset_label_adjusted_with_neighbors(y, y_actual_onset_only, index, dataset):
+    """Adjusted by fitting a model on dataset 4 with original labels and setting the offset per dataset to where
+    the prediction results were best using this model."""
+
+    # No adjustment needed for 1 and 3.
+    # The labels of dataset 4 seem to be on spot - the onset is visible around the original label.
+    if dataset == 2:
+        index += 3
+
+    start = max(0, index - 1)
+    end = min(len(y), index + 2)
+    y[start:end] = 1
+    y_actual_onset_only[index] = 1
+
+
 # def _set_onset_label_adjusted_range(y, y_start_only, index, dataset):
+#     """Adjusted manually based on a few randomly sampled visualizations of onsets in the time domain per dataset."""
+#
 #     start = index
 #     end = index
 #     if dataset == 1:
@@ -118,9 +137,9 @@ def read_X_y(path_to_wav, frame_rate_hz, expected_sample_rate, subsampling_step,
     X_part, length_seconds = read_X(path_to_wav, frame_rate_hz, expected_sample_rate, subsampling_step)
     if X_part is not None:
         if truth_format == 'xml':
-            y_part, y_actual_onset_only_part = read_y_xml(path_to_truth, length_seconds, dataset)
+            y_part, y_actual_onset_only_part = read_y_xml(path_to_truth, length_seconds, frame_rate_hz, dataset)
         elif truth_format == 'csv':
-            y_part, y_actual_onset_only_part = read_y_csv(path_to_truth, length_seconds, dataset)
+            y_part, y_actual_onset_only_part = read_y_csv(path_to_truth, length_seconds, frame_rate_hz, dataset)
         else:
             raise ValueError('Unknown truth format')
 
