@@ -39,7 +39,7 @@ Measure = namedtuple("Measure", [
 ])
 
 Track = namedtuple("Track", [
-    'name', 'nStrings', 'tuning', 'midiPort', 'channel', 'channelE', 'frets', 'capo', 'color'
+    'name', 'nStrings', 'tuning', 'midiPort', 'channel', 'channelE', 'frets', 'capo', 'color', 'instrument'
 ])
 
 
@@ -96,3 +96,27 @@ def empty_beat_effect():
 
 def empty_bend():
     return Bend([])
+
+
+# for the most common signatures, this method gives some possible beam8notes value
+def calc_beam8notes(numerator, denominator):
+    while denominator < 8:
+        denominator *= 2
+        numerator *= 2
+    if numerator > 12 or denominator > 8:
+        return 0, 0, 0, 0;
+
+    b8n = [0, 0, 0, 0]
+    total = 0
+    if numerator <= 8:
+        for i in range(4):
+            b8n[i] = 2 if numerator - total >= 2 else numerator - total
+            total += b8n[i]
+    else:
+        b8n = [2, 2, 2, 2]
+        total = 8
+        for i in range(numerator - total):
+            b8n[i] += 1
+
+    return b8n[0], b8n[1], b8n[2], b8n[3]
+

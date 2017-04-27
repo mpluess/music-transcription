@@ -4,9 +4,10 @@
 
 import struct
 from gp_utils import *
+from collections import defaultdict
 
 
-def write_gp5(measures, tracks, notes,
+def write_gp5(measures, tracks, beats,
               tempo=120,
               header=None,
               lyrics=None,
@@ -19,7 +20,7 @@ def write_gp5(measures, tracks, notes,
     _write_lyrics(file, lyrics)
     _write_print_setup(file)
     _write_meta_info(file, tempo)
-    _write_midi_channels(file)
+    _write_midi_channels(file, tracks)
     for i in range(42):
         _write_unsigned_byte(file, 0xFF)  # skip some weird padding, filled with FFs
     _write_int(file, len(measures))
@@ -27,7 +28,7 @@ def write_gp5(measures, tracks, notes,
     _write_measures(file, measures)
     _write_tracks(file, tracks)
     _write_short(file, 0)  # skip 2 bytes
-    _write_notes(file, notes)
+    _write_beats(file, beats)
 
     file.close()
 
@@ -117,9 +118,13 @@ def _write_meta_info(file, tempo):
     _write_int(file, 0)  # octave
 
 
-def _write_midi_channels(file):
+def _write_midi_channels(file, tracks):
+    channel_instrument = defaultdict(lambda: 25)  # 25 = default instrument (acoustic guitar)
+    for t in tracks:
+        channel_instrument[t.channel] = t.instrument
+        channel_instrument[t.channelE] = t.instrument
     for i in range(64):
-        _write_int(file, 30),  # instrument TODO write correct instrument (30=distorted guitar)
+        _write_int(file, channel_instrument[i+1]),  # instrument
         _write_unsigned_byte(file, 13),  # volume
         _write_unsigned_byte(file, 0),  # balance
         _write_unsigned_byte(file, 0),  # chorus
@@ -154,7 +159,8 @@ def _write_measures(file, measures):
             _write_byte(file, m.majKey)
             _write_byte(file, m.minorKey)
         if flags & 0x03:  # if 1 or 2 is set (change in measure)
-            _write_color(file, m.beam8notes)
+            b8n = calc_beam8notes(m.numerator, m.denominator) if m.beam8notes is not None else m.beam8notes
+            _write_color(file, b8n)
         if not flags & 0x10:  # 16 (was) NOT set..?
             _write_unsigned_byte(file, 0x00)  # unknown1
         _write_unsigned_byte(file, m.triplet_feel)  # 0: none, 1: eights, 2: 16th
@@ -164,7 +170,8 @@ def _write_measures(file, measures):
 def _write_tracks(file, tracks):
     file.seek(-1, 1)  # go 1 byte back as I am not sure where the header really needs to be
     for t in tracks:
-        flags = 0x01 if t.frets > 30 else 0x00  # more than 30 frets (87) indicates a drum track
+        # more than 30 frets (usually 87) and/or using channel 10 (midi standard) indicate a drum track
+        flags = 0x01 if t.frets > 30 or t.channel == 10 else 0x00
         _write_unsigned_byte(file, flags)  # flags
         _write_unsigned_byte(file, 8 | flags)  # flags again (?) [ not sure what happens here ]
 
@@ -183,8 +190,8 @@ def _write_tracks(file, tracks):
             _write_byte(file, b)  # skipped values for version 5.00
 
 
-def _write_notes(file, notes):
-    for notes_m in notes:
+def _write_beats(file, beats):
+    for notes_m in beats:
         for motes_m_t in notes_m:
             for v in range(2):
                 _write_int(file, len(motes_m_t[v]))  # nBeats

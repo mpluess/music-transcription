@@ -31,7 +31,7 @@ class GP5File:
         self.measures = self.__read_measures()
         self.tracks = self.__read_tracks()
         self.file.seek(1 if self.vMinor > 0 else 2, 1)  # skip (vMinor ? 1 : 2)
-        self.notes = self.__read_notes()
+        self.notes = self.__read_beats()
 
         self.file.close()
 
@@ -202,6 +202,7 @@ class GP5File:
             frets = self.read_int()
             capo = self.read_int()
             color = self.read_color()
+            instrument = self.midi_channels[channel-1][0]
 
             self.file.seek(49 if self.vMinor > 0 else 44, 1)  # skip (vMinor ? 49 : 44)
             if self.vMinor > 0:
@@ -209,17 +210,17 @@ class GP5File:
                 str2 = self.read_block_string()
 
             tracks.append(Track(
-                name, nStrings, tuning, midi_port, channel, channelE, frets, capo, color
+                name, nStrings, tuning, midi_port, channel, channelE, frets, capo, color, instrument
             ))
             # print('"' + name + '":', nStrings, tuning, midi_port, channel, channelE, frets, capo, color)
         return tracks
 
-    def __read_notes(self):
-        notes = []
+    def __read_beats(self):
+        beats = []
         for m in range(self.nMeasures):
-            notes.append([])
+            beats.append([])
             for t in range(self.nTracks):
-                notes[m].append(([],[]))
+                beats[m].append(([],[]))
                 for v in range(2):  # every track has two voices
                     nBeats = self.read_int()
                     # print('m:{}, track:{}, v:{}, beats:{}'.format(m,t,v,nBeats))
@@ -244,7 +245,6 @@ class GP5File:
                         for i in range(6, -1, -1):  # for every string 6..0  6 = high E, 1 = low E, 0 = low B
                             if string_flags & (1 << i) and (6 - i <= self.tracks[t].nStrings):
                                 notes_arr.append(self.__read_note(i))
-                                #print(notes[len(notes)-1])
                             else:
                                 notes_arr.append(None)
 
@@ -254,13 +254,13 @@ class GP5File:
                             self.file.seek(1, 1)  # skip(1)
 
                         ntuple_feel = (ntuple_enters, ntuple_times)
-                        notes[m][t][v].append(Beat(
+                        beats[m][t][v].append(Beat(
                             notes_arr, duration, pause, empty, dotted, ntuple_feel, chord, text, effect, mix_change
                         ))
                         # return (!voice.isEmpty() ? duration.getTime() : 0 );
 
                 self.file.seek(1, 1)  # skip(1)
-        return notes
+        return beats
 
     def __read_chord(self):
         self.file.seek(17, 1)  # skip(17)

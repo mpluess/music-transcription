@@ -17,11 +17,11 @@ measures = [  # attention: first measure needs to specify numerator, denominator
 ]
 
 tracks = [  # name nStrings tuning midiPort channel channelE frets capo color
-    Track("test track", 6, (65, 60, 55, 50, 45, 40, -1), 1, 1, 2, 25, 0, (200, 55, 55, 0))
+    Track("test track", 6, (65, 60, 55, 50, 45, 40, -1), 1, 1, 2, 25, 0, (200, 55, 55, 0), 30)
 ]
 
 # make sure you have as many measures and tracks as defined above!
-notes = [
+beats = [
     [  # measure 1
         (  # track 1
             [  # voice 1: notes duration pause empty dotted ntuple_feel chord text effect mix_change
@@ -80,7 +80,7 @@ notes = [
     ],
 ]
 
-write_gp5(measures, tracks, notes, tempo=133, outfile="out.gp5",
+write_gp5(measures, tracks, beats, tempo=133, outfile="out.gp5",
           # header=Header('a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j'),
           # lyrics=Lyrics(1, [(1, "I have no"), (4, "Idea what you talk"), (1, "about, wtf")]),
           )
