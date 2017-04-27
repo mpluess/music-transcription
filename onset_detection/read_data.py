@@ -8,7 +8,7 @@ from warnings import warn
 
 
 def read_X(path_to_wav, frame_rate_hz, expected_sample_rate, subsampling_step):
-    # scipy.io.wavfile is not able to read 24-bit data hence the need to use this alternative library
+    # scipy.io.wavfile is not able to read 24-bit data, hence the need to use this alternative library
     samples, sample_rate = soundfile.read(path_to_wav)
     if len(samples.shape) > 1:
         warn('Skipping ' + path_to_wav + ', cannot handle stereo signal.')
@@ -151,7 +151,6 @@ def read_X_y(path_to_wav, frame_rate_hz, expected_sample_rate, subsampling_step,
 
 
 def read_data(active_datasets, frame_rate_hz, expected_sample_rate, subsampling_step):
-    # TODO dataset einchecken, damit aenderungen zentral gemacht werden (anderes, privates repo)
     dir_tuples = []
     if 1 in active_datasets:
         path_to_ds_1 = r'data\IDMT-SMT-GUITAR_V2\dataset1'
