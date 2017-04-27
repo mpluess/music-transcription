@@ -150,7 +150,7 @@ def read_X_y(path_to_wav, frame_rate_hz, expected_sample_rate, subsampling_step,
         return None, None, None
 
 
-def read_data(active_datasets, frame_rate_hz, expected_sample_rate, subsampling_step):
+def get_wav_and_truth_files(active_datasets):
     dir_tuples = []
     if 1 in active_datasets:
         path_to_ds_1 = r'data\IDMT-SMT-GUITAR_V2\dataset1'
@@ -174,14 +174,16 @@ def read_data(active_datasets, frame_rate_hz, expected_sample_rate, subsampling_
             3,
         ))
 
-    file_tuples = []
+    wav_file_paths = []
+    truth_dataset_format_tuples = []
     for audio_dir, annotation_dir, ds in dir_tuples:
         for wav_file in listdir(audio_dir):
             path_to_wav = os.path.join(audio_dir, wav_file)
             if wav_file.endswith('.wav'):
                 path_to_xml = os.path.join(annotation_dir, wav_file.replace('.wav', '.xml'))
                 if isfile(path_to_xml):
-                    file_tuples.append((path_to_wav, path_to_xml, ds, 'xml'))
+                    wav_file_paths.append(path_to_wav)
+                    truth_dataset_format_tuples.append((path_to_xml, ds, 'xml'))
                 else:
                     warn('Skipping ' + wav_file + ', no truth found.')
             else:
@@ -201,7 +203,8 @@ def read_data(active_datasets, frame_rate_hz, expected_sample_rate, subsampling_
                             if isdir(path_to_onsets):
                                 path_to_csv = os.path.join(path_to_onsets, wav_file.replace('.wav', '.csv'))
                                 if isfile(path_to_csv):
-                                    file_tuples.append((path_to_wav, path_to_csv, 4, 'csv'))
+                                    wav_file_paths.append(path_to_wav)
+                                    truth_dataset_format_tuples.append((path_to_csv, 4, 'csv'))
                                 else:
                                     # TODO fallback to other formats
                                     warn('Skipping ' + path_to_wav + ', no truth csv found.')
@@ -210,17 +213,4 @@ def read_data(active_datasets, frame_rate_hz, expected_sample_rate, subsampling_
                         else:
                             warn('Skipping ' + path_to_wav + ', not a .wav file.')
 
-    X_parts = []
-    y_parts = []
-    y_actual_onset_only_parts = []
-    ds_labels = []
-    for path_to_wav, path_to_truth, dataset, truth_format in file_tuples:
-        X_part, y_part, y_actual_onset_only_part = read_X_y(path_to_wav, frame_rate_hz, expected_sample_rate,
-                                                            subsampling_step, path_to_truth, truth_format, dataset)
-        if X_part is not None and y_part is not None and y_actual_onset_only_part is not None:
-            X_parts.append(X_part)
-            y_parts.append(y_part)
-            y_actual_onset_only_parts.append(y_actual_onset_only_part)
-            ds_labels.append(dataset)
-
-    return X_parts, y_parts, y_actual_onset_only_parts, ds_labels
+    return wav_file_paths, truth_dataset_format_tuples
