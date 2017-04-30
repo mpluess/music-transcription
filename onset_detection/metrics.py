@@ -39,7 +39,8 @@ def onset_metric(y, y_actual_onset_only, y_predicted, n_tolerance_frames_plus_mi
     precision = tp / (tp + fp)
     recall = tp / (tp + fn)
     f1 = 2 * precision * recall / (precision + recall)
-    result_string = 'TP=' + str(tp) + ', FN=' + str(fn) + ', FP=' + str(fp) + '\n'
+    result_string = 'n_tolerance_frames_plus_minus=' + str(n_tolerance_frames_plus_minus) + '\n'
+    result_string += 'TP=' + str(tp) + ', FN=' + str(fn) + ', FP=' + str(fp) + '\n'
     result_string += 'precision=' + str(precision) + ', recall=' + str(recall) + ', F1=' + str(f1) + '\n'
 
     return result_string
