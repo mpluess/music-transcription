@@ -3,8 +3,9 @@
 # and kguitar-code/convert/convertgtp.cpp
 
 import struct
-from gp_utils import *
 from collections import defaultdict
+
+from fileformat.guitar_pro.utils import *
 
 
 def write_gp5(measures, tracks, beats,
@@ -159,7 +160,7 @@ def _write_measures(file, measures):
             _write_byte(file, m.majKey)
             _write_byte(file, m.minorKey)
         if flags & 0x03:  # if 1 or 2 is set (change in measure)
-            b8n = calc_beam8notes(m.numerator, m.denominator) if m.beam8notes is not None else m.beam8notes
+            b8n = calc_beam8notes(m.numerator, m.denominator) if m.beam8notes is None else m.beam8notes
             _write_color(file, b8n)
         if not flags & 0x10:  # 16 (was) NOT set..?
             _write_unsigned_byte(file, 0x00)  # unknown1

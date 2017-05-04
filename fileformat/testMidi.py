@@ -1,4 +1,4 @@
-from MIDI import midi2score
+from fileformat.MIDI import midi2score
 
 with open('test.mid','rb') as f:
     midi = f.read()
@@ -13,7 +13,7 @@ for tracknr in range(1, len(score)):
         ticks = event[1]/ticks_per_quarter
         if event[0] == 'note': # start_time, duration, channel, note, velocity
             dur = event[2]/ticks_per_quarter
-            print('{}: note:{}, dur:{}, chan:{}, velocity:{}'.format(ticks, event[4],dur,event[3],event[5],event[4]))
+            print('{}: note:{}, dur:{}, chan:{}, velocity:{}'.format(ticks, event[4],dur, event[3],event[5],event[4]))
         elif event[0] == 'set_tempo':
             tempo = round(1/(event[2] / 60000000))
             print('{}: set tempo: {}'.format(ticks, tempo))
