@@ -9,13 +9,6 @@ wav_file_paths, truth_dataset_format_tuples = get_wav_and_truth_files(active_dat
 wav_file_paths_train, wav_file_paths_test, truth_dataset_format_tuples_train, truth_dataset_format_tuples_test = train_test_split(
     wav_file_paths, truth_dataset_format_tuples, test_size=0.2, random_state=42
 )
-print('TRAIN FILES')
-for w in sorted(wav_file_paths_train):
-    print(w)
-print('TEST FILES')
-for w in sorted(wav_file_paths_test):
-    print(w)
-exit()
 
 onset_detector = CnnOnsetDetector()
 onset_detector.fit(wav_file_paths_train, truth_dataset_format_tuples_train)
