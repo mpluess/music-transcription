@@ -2,9 +2,11 @@
 # also tuxguitar-gtp org.herac.tuxguitar.io.gtp GP5InputStream
 # and kguitar-code/convert/convertgtp.cpp
 
-import struct
 import logging
-from gp_utils import *
+import struct
+
+from fileformat.guitar_pro.utils import *
+
 
 # logging.basicConfig(level=logging.DEBUG) #filename='example.log'
 

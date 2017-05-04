@@ -1,7 +1,7 @@
 # sample of how to use the write_gp5 method from gp5_writer.py
 
-from gp_utils import *
-from gp5_writer import write_gp5
+from fileformat.guitar_pro.utils import *
+from fileformat.guitar_pro.gp5_writer import write_gp5
 
 # numerator, denominator, repeat_open, repeat_close, repeat_alt, marker_name, marker_color,
 # major_key, minor_key, double_bar, beam8notes, triplet_feel
@@ -16,7 +16,7 @@ measures = [  # attention: first measure needs to specify numerator, denominator
     Measure(0, 0, False, 0, 0, "", (0, 0, 0, 0), 0, 0, False, (0, 0, 0, 0), 0),
 ]
 
-tracks = [  # name nStrings tuning midiPort channel channelE frets capo color
+tracks = [  # name nStrings tuning midiPort channel channelE frets capo color instrument
     Track("test track", 6, (65, 60, 55, 50, 45, 40, -1), 1, 1, 2, 25, 0, (200, 55, 55, 0), 30)
 ]
 
@@ -62,7 +62,7 @@ beats = [
             [  # voice 1: notes duration pause empty dotted ntuple_feel chord text effect mix_change
                 beat([None, None, None, None, note(3), note(0), None], duration=-2)
             ], []  # voice 2
-        )
+        ),
     ],
     [  # measure 7
         (  # track 1
