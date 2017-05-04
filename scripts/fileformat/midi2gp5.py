@@ -1,8 +1,8 @@
 from heapq import heappush, heappop
 
-from fileformat.MIDI import midi2score
-from fileformat.guitar_pro.gp5_writer import write_gp5
-from fileformat.guitar_pro.utils import *
+from music_transcription.fileformat.MIDI import midi2score
+from music_transcription.fileformat.guitar_pro.gp5_writer import write_gp5
+from music_transcription.fileformat.guitar_pro.utils import *
 
 MIDI2GP5_ACCURACY_QUARTERS = 1
 MIDI2GP5_ACCURACY_EIGHTS = 2

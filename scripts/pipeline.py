@@ -1,18 +1,15 @@
 import os
 
-from fileformat.guitar_pro.utils import Header, Measure, Track
-from fileformat.guitar_pro.gp5_writer import write_gp5
-from beat_conversion.simple_beat_conversion import SimpleBeatConverter
-from onset_detection.cnn_onset_detection import CnnOnsetDetector
-from pitch_detection.random_pitch_detection import RandomPitchDetector
-from string_fret_detection.simple_string_fret_detection import SimpleStringFretDetection
+from music_transcription.beat_conversion.simple_beat_conversion import SimpleBeatConverter
+from music_transcription.fileformat.guitar_pro.utils import Header, Measure, Track
+from music_transcription.fileformat.guitar_pro.gp5_writer import write_gp5
+from music_transcription.onset_detection.cnn_onset_detection import CnnOnsetDetector
+from music_transcription.pitch_detection.random_pitch_detection import RandomPitchDetector
+from music_transcription.string_fret_detection.simple_string_fret_detection import SimpleStringFretDetection
 
-# Files in train set
-# path_to_wav_file = r'data\IDMT-SMT-GUITAR_V2\dataset2\audio\AR_Lick5_FN.wav'
+DATA_DIR = r'..\data'
 
-# Other files
-# path_to_wav_file = r'data\IDMT-SMT-GUITAR_V2\dataset2\audio\LP_Lick5_FN.wav'
-path_to_wav_file = r'data\IDMT-SMT-GUITAR_V2\dataset3\audio\pathetique_mono.wav'
+path_to_wav_file = os.path.join(DATA_DIR, r'IDMT-SMT-GUITAR_V2\dataset3\audio\pathetique_mono.wav')
 
 # Standard tuning:
 # string / fret
@@ -25,7 +22,7 @@ path_to_wav_file = r'data\IDMT-SMT-GUITAR_V2\dataset3\audio\pathetique_mono.wav'
 tuning = (64, 59, 55, 50, 45, 40)
 n_frets = 24
 
-onset_detector = CnnOnsetDetector.from_zip('models/20170504-1-channel_ds2_adjusted-labels_10-epochs.zip')
+onset_detector = CnnOnsetDetector.from_zip('../models/20170504-1-channel_ds2_adjusted-labels_10-epochs.zip')
 onset_times_seconds = onset_detector.predict_onset_times_seconds(path_to_wav_file)
 
 # print(onset_times_seconds)
@@ -66,7 +63,7 @@ tracks = [
 ]
 
 track_title = os.path.basename(path_to_wav_file).rstrip('.wav')
-path_to_gp5_file = os.path.join('tmp', track_title + '.gp5')
+path_to_gp5_file = os.path.join(r'..\tmp', track_title + '.gp5')
 write_gp5(
     measures, tracks, beats, tempo=beat_converter.tempo, outfile=path_to_gp5_file, header=Header(
         track_title, '', '', '', '', '', '', '', '', ''

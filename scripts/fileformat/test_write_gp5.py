@@ -1,7 +1,7 @@
 # sample of how to use the write_gp5 method from gp5_writer.py
 
-from fileformat.guitar_pro.utils import *
-from fileformat.guitar_pro.gp5_writer import write_gp5
+from music_transcription.fileformat.guitar_pro.gp5_writer import write_gp5
+from music_transcription.fileformat.guitar_pro.utils import *
 
 # numerator, denominator, repeat_open, repeat_close, repeat_alt, marker_name, marker_color,
 # major_key, minor_key, double_bar, beam8notes, triplet_feel

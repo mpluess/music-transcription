@@ -5,8 +5,7 @@
 import logging
 import struct
 
-from fileformat.guitar_pro.utils import *
-
+from music_transcription.fileformat.guitar_pro.utils import *
 
 # logging.basicConfig(level=logging.DEBUG) #filename='example.log'
 

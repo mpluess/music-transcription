@@ -1,4 +1,4 @@
-from fileformat.MIDI import midi2score
+from music_transcription.fileformat.MIDI import midi2score
 
 with open('test.mid','rb') as f:
     midi = f.read()

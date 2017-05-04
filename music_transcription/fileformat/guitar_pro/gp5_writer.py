@@ -5,7 +5,7 @@
 import struct
 from collections import defaultdict
 
-from fileformat.guitar_pro.utils import *
+from music_transcription.fileformat.guitar_pro.utils import *
 
 
 def write_gp5(measures, tracks, beats,

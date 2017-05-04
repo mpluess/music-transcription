@@ -1,16 +1,17 @@
 from collections import defaultdict
-from itertools import groupby
 import os
 from os import listdir
 from os.path import isdir, isfile
 from warnings import warn
 from xml.etree import ElementTree
 
+DATA_DIR = r'..\data'
+
 
 def read_file_tuples(active_datasets):
     dir_tuples = []
     if 1 in active_datasets:
-        path_to_ds_1 = r'data\IDMT-SMT-GUITAR_V2\dataset1'
+        path_to_ds_1 = os.path.join(DATA_DIR, r'IDMT-SMT-GUITAR_V2\dataset1')
         for guitar_desc in listdir(path_to_ds_1):
             dir_tuples.append((
                 os.path.join(path_to_ds_1, guitar_desc, 'audio'),
@@ -20,14 +21,14 @@ def read_file_tuples(active_datasets):
 
     if 2 in active_datasets:
         dir_tuples.append((
-            r'data\IDMT-SMT-GUITAR_V2\dataset2\audio',
-            r'data\IDMT-SMT-GUITAR_V2\dataset2\annotation',
+            os.path.join(DATA_DIR, r'IDMT-SMT-GUITAR_V2\dataset2\audio'),
+            os.path.join(DATA_DIR, r'IDMT-SMT-GUITAR_V2\dataset2\annotation'),
             2,
         ))
     if 3 in active_datasets:
         dir_tuples.append((
-            r'data\IDMT-SMT-GUITAR_V2\dataset3\audio',
-            r'data\IDMT-SMT-GUITAR_V2\dataset3\annotation',
+            os.path.join(DATA_DIR, r'IDMT-SMT-GUITAR_V2\dataset3\audio'),
+            os.path.join(DATA_DIR, r'IDMT-SMT-GUITAR_V2\dataset3\annotation'),
             3,
         ))
 
@@ -45,7 +46,10 @@ def read_file_tuples(active_datasets):
                 warn('Skipping ' + path_to_wav + ', not a .wav file.')
 
     if 4 in active_datasets:
-        for path_to_ds in [r'data\IDMT-SMT-GUITAR_V2\dataset4\Career SG', r'data\IDMT-SMT-GUITAR_V2\dataset4\Ibanez 2820']:
+        for path_to_ds in [
+            os.path.join(DATA_DIR, r'IDMT-SMT-GUITAR_V2\dataset4\Career SG'),
+            os.path.join(DATA_DIR, r'IDMT-SMT-GUITAR_V2\dataset4\Ibanez 2820')
+        ]:
             for tempo in listdir(path_to_ds):
                 path_to_tempo = os.path.join(path_to_ds, tempo)
                 for genre in listdir(path_to_tempo):

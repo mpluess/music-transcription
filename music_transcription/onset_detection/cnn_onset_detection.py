@@ -1,19 +1,20 @@
 import datetime
-from keras.callbacks import EarlyStopping
-from keras.models import Sequential, model_from_json
-from keras.layers import Activation, Conv2D, Dense, Dropout, Flatten, MaxPooling2D
-import numpy as np
 import os
 import pickle
-from python_speech_features import fbank, logfbank
 import shutil
+from zipfile import ZipFile
+
+import numpy as np
+from keras.callbacks import EarlyStopping
+from keras.layers import Activation, Conv2D, Dense, Dropout, Flatten, MaxPooling2D
+from keras.models import Sequential, model_from_json
+from music_transcription.onset_detection.read_data import read_X, read_y
+from python_speech_features import fbank, logfbank
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.metrics import classification_report
 from sklearn.preprocessing import StandardScaler
-from zipfile import ZipFile
 
-from onset_detection.metrics import onset_metric
-from onset_detection.read_data import read_X, read_y
+from music_transcription.onset_detection.metrics import onset_metric
 
 
 class CnnFeatureExtractor(BaseEstimator, TransformerMixin):

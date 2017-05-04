@@ -6,6 +6,8 @@ import soundfile
 from xml.etree import ElementTree
 from warnings import warn
 
+DATA_DIR = r'..\data'
+
 
 def read_X(path_to_wav, frame_rate_hz, expected_sample_rate, subsampling_step):
     # scipy.io.wavfile is not able to read 24-bit data, hence the need to use this alternative library
@@ -158,7 +160,7 @@ def read_X_y(path_to_wav, frame_rate_hz, expected_sample_rate, subsampling_step,
 def read_data(active_datasets, frame_rate_hz, expected_sample_rate, subsampling_step):
     dir_tuples = []
     if 1 in active_datasets:
-        path_to_ds_1 = r'data\IDMT-SMT-GUITAR_V2\dataset1'
+        path_to_ds_1 = os.path.join(DATA_DIR, r'IDMT-SMT-GUITAR_V2\dataset1')
         for guitar_desc in listdir(path_to_ds_1):
             dir_tuples.append((
                 os.path.join(path_to_ds_1, guitar_desc, 'audio'),
@@ -168,14 +170,14 @@ def read_data(active_datasets, frame_rate_hz, expected_sample_rate, subsampling_
 
     if 2 in active_datasets:
         dir_tuples.append((
-            r'data\IDMT-SMT-GUITAR_V2\dataset2\audio',
-            r'data\IDMT-SMT-GUITAR_V2\dataset2\annotation',
+            os.path.join(DATA_DIR, r'IDMT-SMT-GUITAR_V2\dataset2\audio'),
+            os.path.join(DATA_DIR, r'IDMT-SMT-GUITAR_V2\dataset2\annotation'),
             2,
         ))
     if 3 in active_datasets:
         dir_tuples.append((
-            r'data\IDMT-SMT-GUITAR_V2\dataset3\audio',
-            r'data\IDMT-SMT-GUITAR_V2\dataset3\annotation',
+            os.path.join(DATA_DIR, r'IDMT-SMT-GUITAR_V2\dataset3\audio'),
+            os.path.join(DATA_DIR, r'IDMT-SMT-GUITAR_V2\dataset3\annotation'),
             3,
         ))
 
@@ -193,7 +195,10 @@ def read_data(active_datasets, frame_rate_hz, expected_sample_rate, subsampling_
                 warn('Skipping ' + path_to_wav + ', not a .wav file.')
 
     if 4 in active_datasets:
-        for path_to_ds in [r'data\IDMT-SMT-GUITAR_V2\dataset4\Career SG', r'data\IDMT-SMT-GUITAR_V2\dataset4\Ibanez 2820']:
+        for path_to_ds in [
+            os.path.join(DATA_DIR, r'IDMT-SMT-GUITAR_V2\dataset4\Career SG'),
+            os.path.join(DATA_DIR, r'IDMT-SMT-GUITAR_V2\dataset4\Ibanez 2820')
+        ]:
             for tempo in listdir(path_to_ds):
                 path_to_tempo = os.path.join(path_to_ds, tempo)
                 for genre in listdir(path_to_tempo):
@@ -234,7 +239,7 @@ def read_data(active_datasets, frame_rate_hz, expected_sample_rate, subsampling_
 def get_wav_and_truth_files(active_datasets):
     dir_tuples = []
     if 1 in active_datasets:
-        path_to_ds_1 = r'data\IDMT-SMT-GUITAR_V2\dataset1'
+        path_to_ds_1 = os.path.join(DATA_DIR, r'IDMT-SMT-GUITAR_V2\dataset1')
         for guitar_desc in listdir(path_to_ds_1):
             dir_tuples.append((
                 os.path.join(path_to_ds_1, guitar_desc, 'audio'),
@@ -244,14 +249,14 @@ def get_wav_and_truth_files(active_datasets):
 
     if 2 in active_datasets:
         dir_tuples.append((
-            r'data\IDMT-SMT-GUITAR_V2\dataset2\audio',
-            r'data\IDMT-SMT-GUITAR_V2\dataset2\annotation',
+            os.path.join(DATA_DIR, r'IDMT-SMT-GUITAR_V2\dataset2\audio'),
+            os.path.join(DATA_DIR, r'IDMT-SMT-GUITAR_V2\dataset2\annotation'),
             2,
         ))
     if 3 in active_datasets:
         dir_tuples.append((
-            r'data\IDMT-SMT-GUITAR_V2\dataset3\audio',
-            r'data\IDMT-SMT-GUITAR_V2\dataset3\annotation',
+            os.path.join(DATA_DIR, r'IDMT-SMT-GUITAR_V2\dataset3\audio'),
+            os.path.join(DATA_DIR, r'IDMT-SMT-GUITAR_V2\dataset3\annotation'),
             3,
         ))
 
@@ -271,7 +276,10 @@ def get_wav_and_truth_files(active_datasets):
                 warn('Skipping ' + path_to_wav + ', not a .wav file.')
 
     if 4 in active_datasets:
-        for path_to_ds in [r'data\IDMT-SMT-GUITAR_V2\dataset4\Career SG', r'data\IDMT-SMT-GUITAR_V2\dataset4\Ibanez 2820']:
+        for path_to_ds in [
+            os.path.join(DATA_DIR, r'IDMT-SMT-GUITAR_V2\dataset4\Career SG'),
+            os.path.join(DATA_DIR, r'IDMT-SMT-GUITAR_V2\dataset4\Ibanez 2820')
+        ]:
             for tempo in listdir(path_to_ds):
                 path_to_tempo = os.path.join(path_to_ds, tempo)
                 for genre in listdir(path_to_tempo):

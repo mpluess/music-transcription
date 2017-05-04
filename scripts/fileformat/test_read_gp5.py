@@ -1,4 +1,4 @@
-from fileformat.guitar_pro.gp5_reader import GP5File
+from music_transcription.fileformat.guitar_pro.gp5_reader import GP5File
 
 gp5file = GP5File("test.gp5")  # GP5File("C:/Users/Silvan/Desktop/test.gp5")
 
