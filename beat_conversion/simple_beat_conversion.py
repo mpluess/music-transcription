@@ -1,4 +1,4 @@
-from fileformat.gp_utils import beat, note
+from fileformat.guitar_pro.utils import beat, note
 
 
 class SimpleBeatConverter:

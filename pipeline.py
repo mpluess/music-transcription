@@ -1,7 +1,7 @@
 import os
 
-from fileformat.gp_utils import Header, Measure, Track
-from fileformat.gp5_writer import write_gp5
+from fileformat.guitar_pro.utils import Header, Measure, Track
+from fileformat.guitar_pro.gp5_writer import write_gp5
 from beat_conversion.simple_beat_conversion import SimpleBeatConverter
 from onset_detection.cnn_onset_detection import CnnOnsetDetector
 from pitch_detection.random_pitch_detection import RandomPitchDetector
