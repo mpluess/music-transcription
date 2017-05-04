@@ -127,7 +127,7 @@ def _write_midi_channels(file, tracks):
     for i in range(64):
         _write_int(file, channel_instrument[i+1]),  # instrument
         _write_unsigned_byte(file, 13),  # volume
-        _write_unsigned_byte(file, 0),  # balance
+        _write_unsigned_byte(file, 8),  # balance
         _write_unsigned_byte(file, 0),  # chorus
         _write_unsigned_byte(file, 0),  # reverb
         _write_unsigned_byte(file, 0),  # phaser

@@ -1,5 +1,5 @@
 from heapq import heappush, heappop
-
+from copy import deepcopy
 from music_transcription.fileformat.MIDI import midi2score
 from music_transcription.fileformat.guitar_pro.gp5_writer import write_gp5
 from music_transcription.fileformat.guitar_pro.utils import *
@@ -14,6 +14,11 @@ MIDI2GP5_ACCURACY_TO_GP5DURATION = {1: 0, 2: 1, 4: 2, 8: 3, 16: 4}
 
 G_ACCURACY = MIDI2GP5_ACCURACY_SIXTEENTHS
 G_GP5DURATION = MIDI2GP5_ACCURACY_TO_GP5DURATION[G_ACCURACY]
+
+
+# TODO take tied note correctly into next measure
+# TODO collapse 16notes
+# TODO (?) write bass key on bass instruments (resp tuning)
 
 
 def determine_tuning(min_note):
@@ -141,7 +146,7 @@ cur_marker_name = ""
 cur_beat_start_ticks = 0.0  # current beat started at tick 0.0
 next_beat_start_ticks = 4.0  # next beat starts at tick 4.0
 cur_measure = 0  # start with measure 0
-gp5_beats.append(track_struct)  # append empty measure 0
+gp5_beats.append(deepcopy(track_struct))  # append empty measure 0
 
 gp5_note_overflows = {}  # number of notes (of duration G_GP5DURATION) that didn't fit in the last measure
 for t in gp5_tracks:
@@ -161,7 +166,7 @@ for i in range(len(event_queue)):
         cur_measure += 1
 
         if event[0] != 'song_end':  # do not create new measures for "song end" event. TODO maybe needed for overflow notes?
-            gp5_beats.append(track_struct)  # append empty measure 0
+            gp5_beats.append(deepcopy(track_struct))  # append empty measure 0
             for t in gp5_tracks:  # write overflowing notes  TODO this is not really sophisticated right now
                 if len(gp5_note_overflows[t]) > 0:
                     for b in range(min(gp5_note_overflows[t][0], int(4*cur_numerator/cur_denominator*G_ACCURACY))):
@@ -196,8 +201,8 @@ for i in range(len(event_queue)):
                 cur_gp5_beats.append(beat([None] * 7))
             assert len(cur_gp5_beats) > cur_beat_idx, "A_ERROR: len:{}, idx:{}".format(len(cur_gp5_beats), cur_beat_idx)
             notes = cur_gp5_beats[cur_beat_idx].notes
+            tuning = gp5_tracks[cur_track].tuning
             for t in range(6,-1,-1):
-                tuning = gp5_tracks[cur_track].tuning
                 if 0 <= tuning[t] <= event[4] and t < gp5_tracks[cur_track].nStrings and notes[t] is None:
                     notes[t] = note(event[4] - tuning[t], tied=is_tied)
                     overflow_notes = notes
