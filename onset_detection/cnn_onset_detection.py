@@ -219,7 +219,10 @@ class CnnOnsetDetector:
         print('y_actual_onset_only.sum()={}'.format(y_actual_onset_only.sum()))
 
         self.model = self._create_model(input_shape)
-        self.model.fit(X, y, epochs=500, batch_size=self.BATCH_SIZE,
+        self.model.fit(X, y,
+                       # epochs=500,
+                       epochs=10,
+                       batch_size=self.BATCH_SIZE,
                        callbacks=[EarlyStopping(monitor='loss', patience=5)], verbose=2)
 
     @classmethod
@@ -264,9 +267,46 @@ class CnnOnsetDetector:
 
         return y, y_actual_onset_only
 
-    def predict(self, wav_file_paths):
-        X, _, _ = self.feature_extractor.transform(wav_file_paths)
+    def predict_classes(self, path_to_wav_file):
+        X, _, _ = self.feature_extractor.transform([path_to_wav_file])
         return self.model.predict_classes(X, batch_size=self.BATCH_SIZE).ravel()
+
+    def predict_proba(self, path_to_wav_file):
+        X, _, _ = self.feature_extractor.transform([path_to_wav_file])
+        return self.model.predict_proba(X, batch_size=self.BATCH_SIZE).ravel()
+
+    def predict_classes_proba(self, path_to_wav_file):
+        X, _, _ = self.feature_extractor.transform([path_to_wav_file])
+        return (
+            self.model.predict_classes(X, batch_size=self.BATCH_SIZE).ravel(),
+            self.model.predict_proba(X, batch_size=self.BATCH_SIZE).ravel()
+        )
+
+    def predict_onset_times_seconds(self, path_to_wav_file):
+        classes, probas = self.predict_classes_proba(path_to_wav_file)
+        frame_rate_hz = self.feature_extractor.frame_rate_hz
+
+        # Filter duplicate onsets caused by the labeling of neighbors during training
+        onset_indices_unfiltered = classes.nonzero()[0]
+        last_index = -2
+        onset_group = []
+        onset_times_seconds = []
+        for index in onset_indices_unfiltered:
+            if index - last_index == 1:
+                onset_group.append(index)
+            else:
+                if len(onset_group) > 0:
+                    index_with_highest_proba = max(onset_group, key=lambda i: probas[i])
+                    onset_times_seconds.append(index_with_highest_proba / frame_rate_hz)
+                onset_group = [index]
+            last_index = index
+        index_with_highest_proba = max(onset_group, key=lambda i: probas[i])
+        onset_times_seconds.append(index_with_highest_proba / frame_rate_hz)
+
+        # Return all onsets
+        # onset_times_seconds = [index / frame_rate_hz for index in classes.nonzero()]
+
+        return onset_times_seconds
 
     def predict_print_metrics(self, wav_file_paths, truth_dataset_format_tuples):
         X, file_lengths_seconds, n_frames_after_cutoff_per_file = self.feature_extractor.transform(wav_file_paths)
