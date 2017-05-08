@@ -5,6 +5,7 @@ from music_transcription.fileformat.guitar_pro.utils import Header, Measure, Tra
 from music_transcription.fileformat.guitar_pro.gp5_writer import write_gp5
 from music_transcription.onset_detection.cnn_onset_detection import CnnOnsetDetector
 from music_transcription.pitch_detection.random_pitch_detection import RandomPitchDetector
+from music_transcription.pitch_detection.aubio_pitch_detection import AubioPitchDetector
 from music_transcription.string_fret_detection.simple_string_fret_detection import SimpleStringFretDetection
 
 DATA_DIR = r'..\data'
@@ -31,7 +32,7 @@ onset_times_seconds = onset_detector.predict_onset_times_seconds(path_to_wav_fil
 # for i, label, proba in zip(range(len(classes)), classes, probas):
 #     print('time={}, label={}, proba={}'.format(i / frame_rate_hz, label, proba))
 
-pitch_detector = RandomPitchDetector(tuning, n_frets)
+pitch_detector = AubioPitchDetector(tuning, n_frets)  # RandomPitchDetector(tuning, n_frets)
 pitches = pitch_detector.predict_pitches_monophonic(path_to_wav_file, onset_times_seconds)
 
 # for onset_time_seconds, pitch in zip(onset_times_seconds, pitches):
