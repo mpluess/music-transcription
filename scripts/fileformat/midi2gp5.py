@@ -254,5 +254,5 @@ for m in range(len(gp5_beats)):
                     print("\t\t\t", n)
             print("\t\t\t dur:{}, dot:{}, pause:{}, empty:{}".format(b.duration, b.dotted, b.pause, b.empty))
 
-write_gp5(gp5_measures, gp5_tracks, gp5_beats, init_tempo, outfile="out.gp5")
+write_gp5(gp5_measures, gp5_tracks, gp5_beats, init_tempo, outfile="../../tmp/midi2gp5_output.gp5")
 #write_gp5(gp5_measures[0:1], gp5_tracks, gp5_beats[0:1], init_tempo, outfile="out.gp5")

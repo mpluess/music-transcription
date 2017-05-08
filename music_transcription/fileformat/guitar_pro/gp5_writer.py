@@ -3,8 +3,8 @@
 # and kguitar-code/convert/convertgtp.cpp
 
 import struct
+import os
 from collections import defaultdict
-
 from music_transcription.fileformat.guitar_pro.utils import *
 
 
@@ -13,7 +13,15 @@ def write_gp5(measures, tracks, beats,
               header=None,
               lyrics=None,
               outfile="out.gp5"):
-    version = 'FICHIER GUITAR PRO v5.00'  # for now only this version is suppored
+    version = 'FICHIER GUITAR PRO v5.00'  # for now only this version is supported
+
+    # check if outfile directory exists. If not, try to create directory.
+    if not os.path.exists(os.path.dirname(outfile)):
+        try:
+            os.makedirs(os.path.dirname(outfile))
+        except OSError as exc:  # Guard against race condition
+            if exc.errno != os.errno.EEXIST:
+                raise
     file = open(outfile, 'wb')
 
     _write_block_string(file, version, 30)  # write version
