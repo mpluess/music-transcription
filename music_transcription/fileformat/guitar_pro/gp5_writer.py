@@ -15,20 +15,14 @@ def write_gp5(measures, tracks, beats,
               outfile="out.gp5"):
     version = 'FICHIER GUITAR PRO v5.00'  # for now only this version is supported
 
-    # check if outfile directory exists. If not, try to create directory.
-    if not os.path.exists(os.path.dirname(outfile)):
-        try:
-            os.makedirs(os.path.dirname(outfile))
-        except OSError as exc:  # Guard against race condition
-            if exc.errno != os.errno.EEXIST:
-                raise
+    os.makedirs(os.path.dirname(outfile), exist_ok=True)  # check if output directory exists, create if needed.
     file = open(outfile, 'wb')
 
     _write_block_string(file, version, 30)  # write version
     _write_header(file, header)
     _write_lyrics(file, lyrics)
     _write_print_setup(file)
-    _write_meta_info(file, tempo)
+    _write_meta_info(file, int(tempo))
     _write_midi_channels(file, tracks)
     for i in range(42):
         _write_unsigned_byte(file, 0xFF)  # skip some weird padding, filled with FFs
