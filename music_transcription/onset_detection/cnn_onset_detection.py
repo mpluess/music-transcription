@@ -8,7 +8,7 @@ import numpy as np
 from keras.callbacks import EarlyStopping
 from keras.layers import Activation, Conv2D, Dense, Dropout, Flatten, MaxPooling2D
 from keras.models import Sequential, model_from_json
-from music_transcription.onset_detection.read_data import read_X, read_y
+from music_transcription.onset_detection.read_data import read_X, read_X_y
 from python_speech_features import fbank, logfbank
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.metrics import classification_report
@@ -25,14 +25,10 @@ class CnnFeatureExtractor(BaseEstimator, TransformerMixin):
         self.image_data_format = image_data_format
 
         self.standard_scalers_per_channel = None
-        self.file_lengths_seconds = None
-        self.n_frames_after_cutoff_per_file = None
 
     def fit(self, wav_file_paths, y=None):
         # TODO fit_transform so spectrograms are only done once
-        X_channels, file_lengths_seconds, n_frames_after_cutoff_per_file = self._read_and_extract(wav_file_paths)
-        self.file_lengths_seconds = file_lengths_seconds
-        self.n_frames_after_cutoff_per_file = n_frames_after_cutoff_per_file
+        X_channels = self._read_and_extract(wav_file_paths)
 
         print('Fitting standard scalers for each channel and band')
         self.standard_scalers_per_channel = []
@@ -46,8 +42,13 @@ class CnnFeatureExtractor(BaseEstimator, TransformerMixin):
 
         return self
 
-    def transform(self, wav_file_paths):
-        X_channels, file_lengths_seconds, n_frames_after_cutoff_per_file = self._read_and_extract(wav_file_paths)
+    def transform(self, wav_file_paths, truth_dataset_format_tuples=None):
+        if truth_dataset_format_tuples is None:
+            X_channels = self._read_and_extract(wav_file_paths)
+            y = None
+            y_actual_onset_only = None
+        else:
+            X_channels, y, y_actual_onset_only = self._read_and_extract_with_labels(wav_file_paths, truth_dataset_format_tuples)
         for X in X_channels:
             print(X.shape)
             print(X.mean())
@@ -80,22 +81,46 @@ class CnnFeatureExtractor(BaseEstimator, TransformerMixin):
         X = np.concatenate(X_channels, axis=1)
         print(X.shape)
 
-        return X, file_lengths_seconds, n_frames_after_cutoff_per_file
+        return X, y, y_actual_onset_only
 
     def _read_and_extract(self, wav_file_paths):
         print('Reading wave files')
         X_parts = []
-        file_lengths_seconds = []
         for path_to_wav in wav_file_paths:
             X_part, file_length_seconds = read_X(path_to_wav, self.frame_rate_hz, self.sample_rate, self.subsampling_step)
             if X_part is not None:
                 X_parts.append(X_part)
-                file_lengths_seconds.append(file_length_seconds)
 
         print('Creating spectrograms')
         X_channels, n_frames_after_cutoff_per_file = self._extract_spectrogram_features(X_parts)
 
-        return X_channels, file_lengths_seconds, n_frames_after_cutoff_per_file
+        return X_channels
+
+    def _read_and_extract_with_labels(self, wav_file_paths, truth_dataset_format_tuples):
+        print('Reading wave files and labels')
+        X_parts = []
+        y_parts = []
+        y_actual_onset_only_parts = []
+        for path_to_wav, truth_dataset_format_tuple in zip(wav_file_paths, truth_dataset_format_tuples):
+            path_to_truth, dataset, truth_format = truth_dataset_format_tuple
+            X_part, y_part, y_actual_onset_only_part = read_X_y(path_to_wav, self.frame_rate_hz,
+                                                                self.sample_rate, self.subsampling_step,
+                                                                path_to_truth, truth_format, dataset)
+            if X_part is not None and y_part is not None and y_actual_onset_only_part is not None:
+                X_parts.append(X_part)
+                y_parts.append(y_part)
+                y_actual_onset_only_parts.append(y_actual_onset_only_part)
+
+        print('Creating spectrograms')
+        X_channels, n_frames_after_cutoff_per_file = self._extract_spectrogram_features(X_parts)
+        y = np.concatenate([y_part[:n_frames]
+                            for y_part, n_frames
+                            in zip(y_parts, n_frames_after_cutoff_per_file)])
+        y_actual_onset_only = np.concatenate([y_actual_onset_only_part[:n_frames]
+                                              for y_actual_onset_only_part, n_frames
+                                              in zip(y_actual_onset_only_parts, n_frames_after_cutoff_per_file)])
+
+        return X_channels, y, y_actual_onset_only
 
     def _extract_spectrogram_features(self, X_parts):
         n_frames_after_cutoff_per_file = [None] * len(X_parts)
@@ -209,22 +234,30 @@ class CnnOnsetDetector:
 
         return model
 
-    def fit(self, wav_file_paths, truth_dataset_format_tuples):
-        X, _, _ = self.feature_extractor.fit_transform(wav_file_paths)
-        input_shape = (X.shape[1], X.shape[2], X.shape[3])
-        y, y_actual_onset_only = self._get_labels(truth_dataset_format_tuples,
-                                self.feature_extractor.file_lengths_seconds,
-                                self.feature_extractor.n_frames_after_cutoff_per_file,
-                                self.feature_extractor.frame_rate_hz)
-        print('y.sum()={}'.format(y.sum()))
-        print('y_actual_onset_only.sum()={}'.format(y_actual_onset_only.sum()))
+    def fit(self, wav_file_paths_train, truth_dataset_format_tuples_train,
+            wav_file_paths_val=None, truth_dataset_format_tuples_val=None):
+        self.feature_extractor.fit(wav_file_paths_train)
+        X_train, y_train, y_actual_onset_only_train = self.feature_extractor.transform(wav_file_paths_train,
+                                                                                       truth_dataset_format_tuples_train)
+        input_shape = (X_train.shape[1], X_train.shape[2], X_train.shape[3])
+        print('y_train.sum()={}'.format(y_train.sum()))
+        print('y_actual_onset_only_train.sum()={}'.format(y_actual_onset_only_train.sum()))
+
+        if wav_file_paths_val is not None and truth_dataset_format_tuples_val is not None:
+            X_val, y_val, y_actual_onset_only_val = self.feature_extractor.transform(wav_file_paths_val,
+                                                                                     truth_dataset_format_tuples_val)
+            print('y_val.sum()={}'.format(y_val.sum()))
+            print('y_actual_onset_only_val.sum()={}'.format(y_actual_onset_only_val.sum()))
+            validation_data = (X_val, y_val)
+        else:
+            validation_data = None
 
         self.model = self._create_model(input_shape)
-        self.model.fit(X, y,
-                       # epochs=500,
+        self.model.fit(X_train, y_train,
                        epochs=10,
                        batch_size=self.BATCH_SIZE,
-                       callbacks=[EarlyStopping(monitor='loss', patience=5)], verbose=2)
+                       callbacks=[EarlyStopping(monitor='loss', patience=5)], verbose=2,
+                       validation_data=validation_data)
 
     @classmethod
     def _create_model(cls, input_shape):
@@ -248,25 +281,6 @@ class CnnOnsetDetector:
         model.compile(loss=cls.LOSS, optimizer=cls.OPTIMIZER, metrics=cls.METRICS)
 
         return model
-
-    @staticmethod
-    def _get_labels(truth_dataset_format_tuples, file_lengths_seconds, n_frames_after_cutoff_per_file,
-                    frame_rate_hz):
-        y_parts = []
-        y_actual_onset_only_parts = []
-        for truth_dataset_format, file_length_seconds, n_frames_after_cutoff in zip(
-                truth_dataset_format_tuples,
-                file_lengths_seconds,
-                n_frames_after_cutoff_per_file
-        ):
-            path_to_truth, dataset, format = truth_dataset_format
-            y_part, y_actual_onset_only_part = read_y(format, path_to_truth, file_length_seconds, frame_rate_hz, dataset)
-            y_parts.append(y_part[:n_frames_after_cutoff])
-            y_actual_onset_only_parts.append(y_actual_onset_only_part[:n_frames_after_cutoff])
-        y = np.concatenate(y_parts)
-        y_actual_onset_only = np.concatenate(y_actual_onset_only_parts)
-
-        return y, y_actual_onset_only
 
     def predict_classes(self, path_to_wav_file):
         X, _, _ = self.feature_extractor.transform([path_to_wav_file])
@@ -310,14 +324,8 @@ class CnnOnsetDetector:
         return onset_times_seconds
 
     def predict_print_metrics(self, wav_file_paths, truth_dataset_format_tuples):
-        X, file_lengths_seconds, n_frames_after_cutoff_per_file = self.feature_extractor.transform(wav_file_paths)
+        X, y, y_actual_onset_only = self.feature_extractor.transform(wav_file_paths, truth_dataset_format_tuples)
         y_predicted = self.model.predict_classes(X, batch_size=self.BATCH_SIZE).ravel()
-
-        y, y_actual_onset_only = self._get_labels(truth_dataset_format_tuples,
-                                                  file_lengths_seconds,
-                                                  n_frames_after_cutoff_per_file,
-                                                  self.feature_extractor.frame_rate_hz)
-
         self._print_metrics(y, y_actual_onset_only, y_predicted)
 
     @staticmethod
