@@ -16,11 +16,6 @@ G_ACCURACY = MIDI2GP5_ACCURACY_SIXTEENTHS
 G_GP5DURATION = MIDI2GP5_ACCURACY_TO_GP5DURATION[G_ACCURACY]
 
 
-# TODO take tied note correctly into next measure
-# TODO collapse 16notes
-# TODO (?) write bass key on bass instruments (resp tuning)
-
-
 def determine_tuning(min_note):
     if min_note < 28:  # 28 = E2 = std bass tuning. Assume a 5-string here!
         diff = max(0, 23 - min_note)
@@ -37,6 +32,57 @@ def determine_tuning(min_note):
     else:  # assume standard guitar tuning
         diff = max(0, 40 - min_note)
         return 64 - diff, 59 - diff, 55 - diff, 50 - diff, 45 - diff, 40 - diff, -1
+
+
+def tied_or_none(notes_arr):
+    print(notes_arr)
+    result = True
+    for nt in notes_arr:
+        result = result and (nt is None or nt.tied)
+    return result
+
+
+def get_collapsed_lengths(num_notes):
+    lengths = []
+    duration = G_GP5DURATION
+    while num_notes > 0 and duration > -2:
+        if num_notes % 2 == 1:
+            lengths.append(duration)
+            num_notes -= 1
+        num_notes = int(num_notes/2)
+        duration -= 1
+    for k in range(num_notes):
+        lengths.append(duration)
+    lengths.reverse()
+    return lengths
+
+
+def collapse_beats(beats):
+    for x in range(len(beats)):
+        for y in range(len(beats[x])):
+            new_beats = []
+            cur_beat = None
+            cur_beat_tied = None
+            cur_count = 0
+            beats[x][y][0].append(beat([note(-2)]*7))  # dummy beat that triggers a change before the last beat
+            for bt in beats[x][y][0]:
+                if cur_beat is None:
+                    cur_beat = bt
+                    cur_count = 1
+                elif tied_or_none(bt.notes) and bt.pause == cur_beat.pause:
+                    cur_count += 1
+                    cur_beat_tied = bt
+                else:
+                    c_notes = cur_beat.notes
+                    print(cur_count, get_collapsed_lengths(cur_count))
+                    for z in get_collapsed_lengths(cur_count):
+                        new_beats.append(beat(c_notes, duration=z, pause=cur_beat.pause, empty=cur_beat.empty))
+                        if cur_beat_tied is not None:
+                            c_notes = cur_beat_tied.notes
+                    cur_beat = bt
+                    cur_count = 1
+                    cur_beat_tied = None
+            beats[x][y] = (new_beats, [])
 
 
 Event = namedtuple("Event", ['time', 'track', 'event'])
@@ -148,9 +194,7 @@ next_beat_start_ticks = 4.0  # next beat starts at tick 4.0
 cur_measure = 0  # start with measure 0
 gp5_beats.append(deepcopy(track_struct))  # append empty measure 0
 
-gp5_note_overflows = {}  # number of notes (of duration G_GP5DURATION) that didn't fit in the last measure
-for t in gp5_tracks:
-    gp5_note_overflows[t] = []
+gp5_note_overflows = [(0, None)]*len(gp5_tracks)  # number of notes (of G_GP5DURATION) that didn't fit into last measure
 
 for i in range(len(event_queue)):
     (time, track, event) = heappop(event_queue)
@@ -165,15 +209,15 @@ for i in range(len(event_queue)):
         gp5_measures.append(Measure(nn, dd, False, 0, 0, cur_marker_name, (0, 0, 0, 0), 0, 0, False, None, 0))
         cur_measure += 1
 
-        if event[0] != 'song_end':  # do not create new measures for "song end" event. TODO maybe needed for overflow notes?
+        if event[0] != 'song_end':  # don't create new measure in the end TODO maybe needed for overflow notes?
             gp5_beats.append(deepcopy(track_struct))  # append empty measure 0
-            for t in gp5_tracks:  # write overflowing notes  TODO this is not really sophisticated right now
-                if len(gp5_note_overflows[t]) > 0:
-                    for b in range(min(gp5_note_overflows[t][0], int(4*cur_numerator/cur_denominator*G_ACCURACY))):
-                        gp5_beats[cur_measure][t][0].append(
-                            beat(gp5_note_overflows[t][1], duration=G_GP5DURATION)
-                        )
-                    gp5_note_overflows[t][0] = gp5_note_overflows[t][0] - len(gp5_beats[cur_measure][t][0])
+            for j in range(len(gp5_note_overflows)):  # write overflowing notes
+                of_cur_notes = min(gp5_note_overflows[j][0], int(4*cur_numerator/cur_denominator*G_ACCURACY))
+                for b in range(of_cur_notes):
+                    gp5_beats[cur_measure][j][0].append(
+                        beat(gp5_note_overflows[j][1], duration=G_GP5DURATION)
+                    )
+                gp5_note_overflows[j] = (gp5_note_overflows[j][0] - of_cur_notes, gp5_note_overflows[j][1])
 
             cur_marker_name = ""  # reset name
             cur_beat_start_ticks = next_beat_start_ticks
@@ -202,17 +246,19 @@ for i in range(len(event_queue)):
             assert len(cur_gp5_beats) > cur_beat_idx, "A_ERROR: len:{}, idx:{}".format(len(cur_gp5_beats), cur_beat_idx)
             notes = cur_gp5_beats[cur_beat_idx].notes
             tuning = gp5_tracks[cur_track].tuning
-            for t in range(6,-1,-1):
+            for t in range(6, -1, -1):
                 if 0 <= tuning[t] <= event[4] and t < gp5_tracks[cur_track].nStrings and notes[t] is None:
                     notes[t] = note(event[4] - tuning[t], tied=is_tied)
                     overflow_notes = notes
-                    break  # TODO this doesnt make sure a note is written! (e.g. get all prev notes and determine all possible positions for each note, then determine some smart thing) right now a high E is written on lowest string, when followed by a low E -> impossible!
+                    break  # TODO this doesnt make sure a note is written!
+                    # better: get all prev notes, list all possible positions for each note -> get most plausible
+                    # right now a high E is written on lowest string, when followed by a low E -> impossible!
 
             cur_gp5_beats[cur_beat_idx] = beat(notes, duration=G_GP5DURATION)
             is_tied = True  # following beats tied!
 
         gp5_note_overflows[cur_track] = [max(0, n_notes - cur_notes), overflow_notes]
-        print('{}[{}]: note:{}, dur:{}, chan:{}, velocity:{}'.format(ticks, cur_track, event[4], dur, event[3], event[5]))
+        print('{}[{}]: note:{}, dur:{}, chan:{}, veloc:{}'.format(ticks, cur_track, event[4], dur, event[3], event[5]))
     elif event[0] == 'set_tempo':
         tempo = round(1 / (event[2] / 60000000))
         init_tempo = tempo if ticks == 0 else init_tempo  # update init tempo if necessary
@@ -239,20 +285,22 @@ for i in range(len(event_queue)):
 for m in gp5_measures:
     print(m)
 
+collapse_beats(gp5_beats)
+
 assert len(gp5_measures) == len(gp5_beats), "ERR: Mlen {}!={}".format(len(gp5_measures), len(gp5_beats))
-for m in range(len(gp5_beats)):
-    print('Measure {}'.format(m+1))
-    assert len(gp5_tracks) == len(gp5_beats[m]), "ERR: Tlen {}!={}".format(len(gp5_tracks), len(gp5_beats[m]))
-    for t in range(len(gp5_beats[m])):
-        print('\tTrack {}'.format(t + 1))
-        for b in gp5_beats[m][t][0]:
-            print("\t\tBeat")
-            if b.pause or b.empty:
-                print("\t\t\t", b.notes)
-            else:
-                for n in b.notes:
-                    print("\t\t\t", n)
-            print("\t\t\t dur:{}, dot:{}, pause:{}, empty:{}".format(b.duration, b.dotted, b.pause, b.empty))
+if False:
+    for m in range(len(gp5_beats)):
+        print('Measure {}'.format(m+1))
+        assert len(gp5_tracks) == len(gp5_beats[m]), "ERR: Tlen {}!={}".format(len(gp5_tracks), len(gp5_beats[m]))
+        for t in range(len(gp5_beats[m])):
+            print('\tTrack {}'.format(t + 1))
+            for b in gp5_beats[m][t][0]:
+                print("\t\tBeat")
+                if b.pause or b.empty:
+                    print("\t\t\t", b.notes)
+                else:
+                    for n in b.notes:
+                        print("\t\t\t", n)
+                print("\t\t\t dur:{}, dot:{}, pause:{}, empty:{}".format(b.duration, b.dotted, b.pause, b.empty))
 
 write_gp5(gp5_measures, gp5_tracks, gp5_beats, init_tempo, outfile="../../tmp/midi2gp5_output.gp5")
-#write_gp5(gp5_measures[0:1], gp5_tracks, gp5_beats[0:1], init_tempo, outfile="out.gp5")
