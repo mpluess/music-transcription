@@ -11,6 +11,7 @@ class AubioPitchDetector:
         self.n_frets = n_frets
 
     def predict_pitches_monophonic(self, path_to_wav_file, onset_times_seconds):
+        min_pitch = min(self.tuning)
         window_size = 4096  # fft size = 93ms
         src = aubio.source(path_to_wav_file, hop_size=512)
 
@@ -49,8 +50,12 @@ class AubioPitchDetector:
                         confidence,
                         round((s_next + i + 1) * src.hop_size / src.samplerate, 3)
                     ))
+                confidence = max(confidence, conf2)  # update confidence if it was the same note
 
-            pitches.append(pitch if pitch > 0 else 42)  # use 42 as default, as 0 not possible w gp5_writer
+            if pitch < min_pitch:
+                print("WARNING: estimated pitch is lower than given tuning! => set to minimum:", pitch, '=>', min_pitch)
+                pitch = min_pitch
+            pitches.append(pitch)
             s_last = s_next + offset2
 
         return pitches

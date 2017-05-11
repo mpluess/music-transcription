@@ -33,8 +33,9 @@ class SimpleBeatConverter:
     def transform(self, path_to_wav_file, onset_times_seconds, pitches, strings, frets):
         bpm = round(np.median(60. / np.diff(onset_times_seconds)))
         print('tempo aubio:{}, tempo median of onsets:{}'.format(self.tempo, bpm))
-        self.tempo = bpm  # use our own onsets / override aubio method
         bps = bpm/60  # beats per second
+        # bps = self.tempo / 60
+        self.tempo = bpm  # use our own onsets / override aubio method
 
         """Assumes 4/4 measure."""
 
@@ -57,7 +58,7 @@ class SimpleBeatConverter:
             if idx < len(onset_times_seconds):
                 diff = onset_times_seconds[idx] - onset
             idx += 1
-            beat_diff = min(diff/bps, 4 - m_len)  # difference in beats (quarter notes)
+            beat_diff = min(diff*bps, 4 - m_len)  # difference in beats (quarter notes)
             gp5_duration = round(log2(beat_diff))  # e.g. if difference is 0.25 beats, log2(0.25) = -2
             gp5_duration = max(-2, gp5_duration)  # for now, don't go lower than 16th notes
             m_len += pow(2, gp5_duration)
