@@ -1,13 +1,26 @@
+"""Run the current music transcription pipeline.
+
+Input: guitar recording (wave file)
+Output: transcribed notes and tabs (gp5 file)
+
+Parts:
+- onset detection
+- pitch detection
+- string and fret detection
+- mapping of onsets and pitches to measures and notes / chords
+- gp5 export
+"""
+
 import os
 
 from music_transcription.beat_conversion.simple_beat_conversion import SimpleBeatConverter
 from music_transcription.fileformat.guitar_pro.utils import Header, Measure, Track
 from music_transcription.fileformat.guitar_pro.gp5_writer import write_gp5
 from music_transcription.onset_detection.cnn_onset_detection import CnnOnsetDetector
-from music_transcription.pitch_detection.random_pitch_detection import RandomPitchDetector
 from music_transcription.pitch_detection.aubio_pitch_detection import AubioPitchDetector
 from music_transcription.string_fret_detection.simple_string_fret_detection import SimpleStringFretDetection
 
+# CONFIG
 DATA_DIR = r'..\data'
 
 path_to_wav_file = os.path.join(DATA_DIR, r'IDMT-SMT-GUITAR_V2\dataset3\audio\pathetique_mono.wav')
@@ -23,20 +36,12 @@ path_to_wav_file = os.path.join(DATA_DIR, r'IDMT-SMT-GUITAR_V2\dataset3\audio\pa
 tuning = (64, 59, 55, 50, 45, 40)
 n_frets = 24
 
-onset_detector = CnnOnsetDetector.from_zip('../models/20170504-1-channel_ds2_adjusted-labels_10-epochs.zip')
+# PIPELINE
+onset_detector = CnnOnsetDetector.from_zip('../models/20170511-3-channels_ds1-4_80-perc_adjusted-labels.zip')
 onset_times_seconds = onset_detector.predict_onset_times_seconds(path_to_wav_file)
 
-# print(onset_times_seconds)
-# classes, probas = onset_detector.predict_classes_proba(path_to_wav_file)
-# frame_rate_hz = onset_detector.feature_extractor.frame_rate_hz
-# for i, label, proba in zip(range(len(classes)), classes, probas):
-#     print('time={}, label={}, proba={}'.format(i / frame_rate_hz, label, proba))
-
-pitch_detector = AubioPitchDetector(tuning, n_frets)  # RandomPitchDetector(tuning, n_frets)
+pitch_detector = AubioPitchDetector(tuning, n_frets)
 pitches = pitch_detector.predict_pitches_monophonic(path_to_wav_file, onset_times_seconds)
-
-# for onset_time_seconds, pitch in zip(onset_times_seconds, pitches):
-#     print('onset={}, pitch={}'.format(onset_time_seconds, pitch))
 
 string_fret_detector = SimpleStringFretDetection(tuning, n_frets)
 strings, frets = string_fret_detector.predict_strings_and_frets(path_to_wav_file, onset_times_seconds, pitches)

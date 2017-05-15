@@ -1,32 +1,41 @@
 import datetime
-import os
-import pickle
-import shutil
-from zipfile import ZipFile
-
-import numpy as np
 from keras.callbacks import EarlyStopping
 from keras.layers import Activation, Conv2D, Dense, Dropout, Flatten, MaxPooling2D
 from keras.models import Sequential, model_from_json
-from music_transcription.onset_detection.read_data import read_X, read_X_y
+import numpy as np
+import os
+import pickle
 from python_speech_features import fbank, logfbank
+import shutil
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.metrics import classification_report
 from sklearn.preprocessing import StandardScaler
+from zipfile import ZipFile
 
 from music_transcription.onset_detection.metrics import onset_metric
+from music_transcription.onset_detection.read_data import read_X, read_X_y
 
 
 class CnnFeatureExtractor(BaseEstimator, TransformerMixin):
-    def __init__(self, frame_rate_hz, sample_rate, subsampling_step, image_data_format):
+    """Transformer doing feature extraction for the onset detection CNN.
+
+    Method is described in detail here: http://www.ofai.at/~jan.schlueter/pubs/2014_icassp.pdf
+    For a given frame rate and sample rate, extracts one or more spectrogram excerpts per frame.
+    If more than one spectrogram excerpt per frame is created, they are organized in channels.
+    """
+
+    def __init__(self, frame_rate_hz, sample_rate, subsampling_step, image_data_format, winlen_nfft_per_channel):
         self.frame_rate_hz = frame_rate_hz
         self.sample_rate = sample_rate
         self.subsampling_step = subsampling_step
         self.image_data_format = image_data_format
+        self.winlen_nfft_per_channel = winlen_nfft_per_channel
 
         self.standard_scalers_per_channel = None
 
     def fit(self, wav_file_paths, y=None):
+        """Fit standard scalers per channel and band."""
+
         # TODO fit_transform so spectrograms are only done once
         X_channels = self._read_and_extract(wav_file_paths)
 
@@ -43,6 +52,18 @@ class CnnFeatureExtractor(BaseEstimator, TransformerMixin):
         return self
 
     def transform(self, wav_file_paths, truth_dataset_format_tuples=None):
+        """Transform wave files to a feature matrix.
+
+        Input:
+        wav_file_paths: List of paths to wave files
+        truth_dataset_format_tuples: List of tuples (path_to_truth, dataset, truth_format).
+        See music_transcription.onset_detection.read_data.get_wav_and_truth_files.
+        If this is set, also returns the labels y (with neighbors) and y_actual_onset_only.
+        If not, None is returned for y and y_actual_onset_only.
+
+        Output: Tuple (X, y, y_actual_onset_only)
+        """
+
         if truth_dataset_format_tuples is None:
             X_channels = self._read_and_extract(wav_file_paths)
             y = None
@@ -78,12 +99,16 @@ class CnnFeatureExtractor(BaseEstimator, TransformerMixin):
             print(X_channels[i].shape)
 
         print('Concatenating channels')
+        # TODO concatenate and delete one by one to use less memory at once
+        # TODO axis should change depending on image_data_format (1 vs. 3)
         X = np.concatenate(X_channels, axis=1)
         print(X.shape)
 
         return X, y, y_actual_onset_only
 
     def _read_and_extract(self, wav_file_paths):
+        """Read wave files, extract spectrogram features and return a feature matrix with shape (n_frames_all_files, n_bands) per channel."""
+
         print('Reading wave files')
         X_parts = []
         for path_to_wav in wav_file_paths:
@@ -97,6 +122,12 @@ class CnnFeatureExtractor(BaseEstimator, TransformerMixin):
         return X_channels
 
     def _read_and_extract_with_labels(self, wav_file_paths, truth_dataset_format_tuples):
+        """Return a tuple (X_channels, y, y_actual_onset_only)
+
+        X_channels: list of one feature matrix with shape (n_frames_all_files, n_bands) per channel
+        y, y_actual_onset_only: corresponding onset labels
+        """
+
         print('Reading wave files and labels')
         X_parts = []
         y_parts = []
@@ -113,6 +144,8 @@ class CnnFeatureExtractor(BaseEstimator, TransformerMixin):
 
         print('Creating spectrograms')
         X_channels, n_frames_after_cutoff_per_file = self._extract_spectrogram_features(X_parts)
+        # Cut labels to the same size as X. Number of frames that are cut off is defined by the largest window size
+        # of all channels.
         y = np.concatenate([y_part[:n_frames]
                             for y_part, n_frames
                             in zip(y_parts, n_frames_after_cutoff_per_file)])
@@ -123,14 +156,25 @@ class CnnFeatureExtractor(BaseEstimator, TransformerMixin):
         return X_channels, y, y_actual_onset_only
 
     def _extract_spectrogram_features(self, X_parts):
+        """Return a tuple (X_channels, n_frames_after_cutoff_per_file)
+
+        X_channels: list of one feature matrix with shape (n_frames_all_files, n_bands) per channel
+        n_frames_after_cutoff_per_file: number of frames that remain after the last (max(winlen of channels) - winstep)
+        seconds are cut off by _extract_spectrogram_features_X.
+        """
+
         n_frames_after_cutoff_per_file = [None] * len(X_parts)
         X_channels = []
         # Create 3 channels with different window length.
         # Make sure to run the largest window first which cuts off the most at the end of the file.
         # Return and reuse the number of frames for each part = each file for the other nfft values.
         for winlen, nfft in sorted(
-                # [(0.023, 1024), (0.046, 2048), (0.092, 4096)],
-                [(0.046, 2048)],
+                # 3 channels:
+                # ((0.023, 1024), (0.046, 2048), (0.092, 4096)),
+
+                # 1 channel:
+                # ((0.046, 2048),)
+                self.winlen_nfft_per_channel,
 
                 key=lambda t: t[1], reverse=True
         ):
@@ -146,7 +190,15 @@ class CnnFeatureExtractor(BaseEstimator, TransformerMixin):
     def _extract_spectrogram_features_X(self, X_part, n_frames, log_transform_magnitudes=True,
                                         winlen=0.046, nfilt=80, nfft=2048,
                                         lowfreq=27.5, highfreq=16000, preemph=0):
-        """Last (winlen - winstep) seconds will be cut off"""
+        """Extract spectrogram features for one file.
+
+        If n_frames is None: Last (winlen - winstep) seconds will be cut off.
+        Else: n_frames will be kept, the rest is cut off.
+
+        Returns a tuple (filterbank, n_frames)
+        filterbank: feature matrix with shape (n_frames, n_bands)
+        n_frames: if n_frames is already set: return unchanged, else: return filterbank.shape[0]
+        """
 
         winstep = 1 / self.frame_rate_hz
         samples = X_part.ravel()
@@ -193,12 +245,14 @@ class CnnOnsetDetector:
     BATCH_SIZE = 1024
 
     def __init__(self, feature_extractor=None, model=None,
-                 frame_rate_hz=100, sample_rate=44100, subsampling_step=1, image_data_format='channels_first'):
+                 frame_rate_hz=100, sample_rate=44100, subsampling_step=1, image_data_format='channels_first',
+                 winlen_nfft_per_channel=((0.046, 2048),)):
         if feature_extractor is None:
             self.feature_extractor = CnnFeatureExtractor(frame_rate_hz=frame_rate_hz,
                                                          sample_rate=sample_rate,
                                                          subsampling_step=subsampling_step,
-                                                         image_data_format=image_data_format)
+                                                         image_data_format=image_data_format,
+                                                         winlen_nfft_per_channel=winlen_nfft_per_channel)
         else:
             self.feature_extractor = feature_extractor
 
@@ -206,6 +260,9 @@ class CnnOnsetDetector:
 
     @classmethod
     def from_zip(cls, path_to_zip, work_dir='zip_tmp'):
+        """Load CnnOnsetDetector from a zipfile containing a pickled CnnFeatureExtractor,
+        a Keras model JSON file and a Keras weights HDF5 file."""
+
         if os.path.exists(work_dir):
             shutil.rmtree(work_dir)
         os.makedirs(work_dir)
@@ -220,12 +277,16 @@ class CnnOnsetDetector:
 
     @classmethod
     def _load_feature_extractor(cls, path_to_model_folder):
+        """Load feature extractor"""
+
         with open(os.path.join(path_to_model_folder, cls.FEATURE_EXTRACTOR_FILE), 'rb') as f:
             feature_extractor = pickle.load(f)
         return feature_extractor
 
     @classmethod
     def _load_model(cls, path_to_model_folder):
+        """Load and compile Keras model"""
+
         with open(os.path.join(path_to_model_folder, cls.MODEL_FILE)) as f:
             model = model_from_json(f.read())
         model.load_weights(os.path.join(path_to_model_folder, cls.WEIGHTS_FILE))
@@ -234,108 +295,10 @@ class CnnOnsetDetector:
 
         return model
 
-    def fit(self, wav_file_paths_train, truth_dataset_format_tuples_train,
-            wav_file_paths_val=None, truth_dataset_format_tuples_val=None):
-        self.feature_extractor.fit(wav_file_paths_train)
-        X_train, y_train, y_actual_onset_only_train = self.feature_extractor.transform(wav_file_paths_train,
-                                                                                       truth_dataset_format_tuples_train)
-        input_shape = (X_train.shape[1], X_train.shape[2], X_train.shape[3])
-        print('y_train.sum()={}'.format(y_train.sum()))
-        print('y_actual_onset_only_train.sum()={}'.format(y_actual_onset_only_train.sum()))
-
-        if wav_file_paths_val is not None and truth_dataset_format_tuples_val is not None:
-            X_val, y_val, y_actual_onset_only_val = self.feature_extractor.transform(wav_file_paths_val,
-                                                                                     truth_dataset_format_tuples_val)
-            print('y_val.sum()={}'.format(y_val.sum()))
-            print('y_actual_onset_only_val.sum()={}'.format(y_actual_onset_only_val.sum()))
-            validation_data = (X_val, y_val)
-        else:
-            validation_data = None
-
-        self.model = self._create_model(input_shape)
-        self.model.fit(X_train, y_train,
-                       epochs=10,
-                       batch_size=self.BATCH_SIZE,
-                       callbacks=[EarlyStopping(monitor='loss', patience=5)], verbose=2,
-                       validation_data=validation_data)
-
-    @classmethod
-    def _create_model(cls, input_shape):
-        model = Sequential()
-
-        model.add(Conv2D(10, (7, 3), padding='valid', input_shape=input_shape))
-        model.add(Activation('relu'))
-        model.add(MaxPooling2D(pool_size=(1, 3)))
-        model.add(Conv2D(20, (3, 3), padding='valid'))
-        model.add(Activation('relu'))
-        model.add(MaxPooling2D(pool_size=(1, 3)))
-        model.add(Dropout(0.25))
-
-        model.add(Flatten())
-        model.add(Dense(256))
-        model.add(Activation('relu'))
-        model.add(Dropout(0.5))
-        model.add(Dense(1))
-        model.add(Activation('sigmoid'))
-
-        model.compile(loss=cls.LOSS, optimizer=cls.OPTIMIZER, metrics=cls.METRICS)
-
-        return model
-
-    def predict_classes(self, path_to_wav_file):
-        X, _, _ = self.feature_extractor.transform([path_to_wav_file])
-        return self.model.predict_classes(X, batch_size=self.BATCH_SIZE).ravel()
-
-    def predict_proba(self, path_to_wav_file):
-        X, _, _ = self.feature_extractor.transform([path_to_wav_file])
-        return self.model.predict_proba(X, batch_size=self.BATCH_SIZE).ravel()
-
-    def predict_classes_proba(self, path_to_wav_file):
-        X, _, _ = self.feature_extractor.transform([path_to_wav_file])
-        return (
-            self.model.predict_classes(X, batch_size=self.BATCH_SIZE).ravel(),
-            self.model.predict_proba(X, batch_size=self.BATCH_SIZE).ravel()
-        )
-
-    def predict_onset_times_seconds(self, path_to_wav_file):
-        classes, probas = self.predict_classes_proba(path_to_wav_file)
-        frame_rate_hz = self.feature_extractor.frame_rate_hz
-
-        # Filter duplicate onsets caused by the labeling of neighbors during training
-        onset_indices_unfiltered = classes.nonzero()[0]
-        last_index = -2
-        onset_group = []
-        onset_times_seconds = []
-        for index in onset_indices_unfiltered:
-            if index - last_index == 1:
-                onset_group.append(index)
-            else:
-                if len(onset_group) > 0:
-                    index_with_highest_proba = max(onset_group, key=lambda i: probas[i])
-                    onset_times_seconds.append(index_with_highest_proba / frame_rate_hz)
-                onset_group = [index]
-            last_index = index
-        index_with_highest_proba = max(onset_group, key=lambda i: probas[i])
-        onset_times_seconds.append(index_with_highest_proba / frame_rate_hz)
-
-        # Return all onsets
-        # onset_times_seconds = [index / frame_rate_hz for index in classes.nonzero()]
-
-        return onset_times_seconds
-
-    def predict_print_metrics(self, wav_file_paths, truth_dataset_format_tuples):
-        X, y, y_actual_onset_only = self.feature_extractor.transform(wav_file_paths, truth_dataset_format_tuples)
-        y_predicted = self.model.predict_classes(X, batch_size=self.BATCH_SIZE).ravel()
-        self._print_metrics(y, y_actual_onset_only, y_predicted)
-
-    @staticmethod
-    def _print_metrics(y, y_actual_onset_only, y_predicted):
-        print(classification_report(y, y_predicted))
-        print(onset_metric(y, y_actual_onset_only, y_predicted, n_tolerance_frames_plus_minus=2))
-        print(onset_metric(y, y_actual_onset_only, y_predicted, n_tolerance_frames_plus_minus=5))
-        print('')
-
     def save(self, path_to_zip, work_dir='zip_tmp'):
+        """Sav this CnnOnsetDetector to a zipfile containing a pickled CnnFeatureExtractor,
+        a Keras model JSON file and a Keras weights HDF5 file."""
+
         if os.path.exists(path_to_zip):
             path_to_zip_orig = path_to_zip
             path_to_zip = 'CnnOnsetDetector_model_' + datetime.datetime.now().strftime('%Y%m%d-%H%M%S') + '.zip'
@@ -364,3 +327,133 @@ class CnnOnsetDetector:
             for path_to_file in to_zip:
                 zip_file.write(path_to_file, arcname=os.path.basename(path_to_file))
         shutil.rmtree(work_dir)
+
+    def fit(self, wav_file_paths_train, truth_dataset_format_tuples_train,
+            wav_file_paths_val=None, truth_dataset_format_tuples_val=None):
+        """Fit onset detector to the supplied wave files and labels.
+
+        truth_dataset_format_tuples: List of tuples (path_to_truth, dataset, truth_format).
+        See music_transcription.onset_detection.read_data.get_wav_and_truth_files.
+
+        wav_file_paths_val and truth_dataset_format_tuples_val are used as a validation set during training if set.
+
+        Fit CnnFeatureExtractor and the Keras model created by _create_model.
+        """
+
+        self.feature_extractor.fit(wav_file_paths_train)
+        X_train, y_train, y_actual_onset_only_train = self.feature_extractor.transform(wav_file_paths_train,
+                                                                                       truth_dataset_format_tuples_train)
+        input_shape = (X_train.shape[1], X_train.shape[2], X_train.shape[3])
+        print('y_train.sum()={}'.format(y_train.sum()))
+        print('y_actual_onset_only_train.sum()={}'.format(y_actual_onset_only_train.sum()))
+
+        if wav_file_paths_val is not None and truth_dataset_format_tuples_val is not None:
+            X_val, y_val, y_actual_onset_only_val = self.feature_extractor.transform(wav_file_paths_val,
+                                                                                     truth_dataset_format_tuples_val)
+            print('y_val.sum()={}'.format(y_val.sum()))
+            print('y_actual_onset_only_val.sum()={}'.format(y_actual_onset_only_val.sum()))
+            validation_data = (X_val, y_val)
+        else:
+            validation_data = None
+
+        self.model = self._create_model(input_shape)
+        self.model.fit(X_train, y_train,
+                       epochs=500,
+                       batch_size=self.BATCH_SIZE,
+                       callbacks=[EarlyStopping(monitor='loss', patience=5)], verbose=2,
+                       validation_data=validation_data)
+
+    @classmethod
+    def _create_model(cls, input_shape):
+        """Keras model description"""
+
+        model = Sequential()
+
+        model.add(Conv2D(10, (7, 3), padding='valid', input_shape=input_shape))
+        model.add(Activation('relu'))
+        model.add(MaxPooling2D(pool_size=(1, 3)))
+        model.add(Conv2D(20, (3, 3), padding='valid'))
+        model.add(Activation('relu'))
+        model.add(MaxPooling2D(pool_size=(1, 3)))
+        model.add(Dropout(0.25))
+
+        model.add(Flatten())
+        model.add(Dense(256))
+        model.add(Activation('relu'))
+        model.add(Dropout(0.5))
+        model.add(Dense(1))
+        model.add(Activation('sigmoid'))
+
+        model.compile(loss=cls.LOSS, optimizer=cls.OPTIMIZER, metrics=cls.METRICS)
+
+        return model
+
+    def predict_onset_times_seconds(self, path_to_wav_file):
+        classes_filtered = self._predict_classes_filtered(path_to_wav_file)
+        frame_rate_hz = self.feature_extractor.frame_rate_hz
+
+        onset_indices_filtered = classes_filtered.nonzero()[0]
+        return [index / frame_rate_hz for index in onset_indices_filtered]
+
+    def predict_print_metrics(self, wav_file_paths, truth_dataset_format_tuples):
+        X, y, y_actual_onset_only = self.feature_extractor.transform(wav_file_paths, truth_dataset_format_tuples)
+
+        print('unfiltered:')
+        y_predicted = self.model.predict_classes(X, batch_size=self.BATCH_SIZE).ravel()
+        self._print_metrics(y, y_actual_onset_only, y_predicted)
+
+        print('filtered:')
+        probas = self.model.predict_proba(X, batch_size=self.BATCH_SIZE).ravel()
+        y_predicted_filtered = self._filter_classes(y_predicted, probas)
+        self._print_metrics(y, y_actual_onset_only, y_predicted_filtered)
+
+    def _predict_classes(self, path_to_wav_file):
+        X, _, _ = self.feature_extractor.transform([path_to_wav_file])
+        return self.model.predict_classes(X, batch_size=self.BATCH_SIZE).ravel()
+
+    def _predict_proba(self, path_to_wav_file):
+        X, _, _ = self.feature_extractor.transform([path_to_wav_file])
+        return self.model.predict_proba(X, batch_size=self.BATCH_SIZE).ravel()
+
+    def _predict_classes_proba(self, path_to_wav_file):
+        X, _, _ = self.feature_extractor.transform([path_to_wav_file])
+        return (
+            self.model.predict_classes(X, batch_size=self.BATCH_SIZE).ravel(),
+            self.model.predict_proba(X, batch_size=self.BATCH_SIZE).ravel()
+        )
+
+    def _predict_classes_filtered(self, path_to_wav_file):
+        classes, probas = self._predict_classes_proba(path_to_wav_file)
+        return self._filter_classes(classes, probas)
+
+    @staticmethod
+    def _filter_classes(classes, probas):
+        """Filter duplicate onsets caused by the labeling of neighbors during training"""
+
+        onset_indices_unfiltered = classes.nonzero()[0]
+        onset_indices_filtered = []
+        last_index = -2
+        onset_group = []
+        for index in onset_indices_unfiltered:
+            if index - last_index == 1:
+                onset_group.append(index)
+            else:
+                if len(onset_group) > 0:
+                    index_with_highest_proba = max(onset_group, key=lambda i: probas[i])
+                    onset_indices_filtered.append(index_with_highest_proba)
+                onset_group = [index]
+            last_index = index
+        index_with_highest_proba = max(onset_group, key=lambda i: probas[i])
+        onset_indices_filtered.append(index_with_highest_proba)
+
+        classes_filtered = np.zeros(len(classes), dtype=np.int8)
+        classes_filtered[onset_indices_filtered] = 1
+
+        return classes_filtered
+
+    @staticmethod
+    def _print_metrics(y, y_actual_onset_only, y_predicted):
+        print(classification_report(y, y_predicted))
+        print(onset_metric(y, y_actual_onset_only, y_predicted, n_tolerance_frames_plus_minus=2))
+        print(onset_metric(y, y_actual_onset_only, y_predicted, n_tolerance_frames_plus_minus=5))
+        print('')

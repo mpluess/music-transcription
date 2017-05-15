@@ -1,3 +1,5 @@
+"""Count the number of files with at least one polyphonic onset as well as the number of polyphonic onsets."""
+
 from collections import defaultdict
 import os
 from os import listdir
@@ -101,7 +103,7 @@ def get_onsets_xml(path_to_xml):
     return sorted(onsets)
 
 active_datasets = {1, 2, 3, 4}
-MAX_POLYPHONY_DIFF = 0.1
+MAX_POLYPHONY_DIFF = 0.05
 
 file_tuples = read_file_tuples(active_datasets)
 
