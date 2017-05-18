@@ -1,6 +1,7 @@
-from music_transcription.onset_detection.cnn_onset_detection import CnnOnsetDetector
+import os
 from sklearn.model_selection import train_test_split
 
+from music_transcription.onset_detection.cnn_onset_detection import CnnOnsetDetector
 from music_transcription.onset_detection.read_data import get_wav_and_truth_files
 
 
@@ -14,7 +15,7 @@ def predict_test_split():
         wav_file_paths, truth_dataset_format_tuples, test_size=0.2, random_state=42
     )
 
-    onset_detector = CnnOnsetDetector.from_zip('../models/20170511-3-channels_ds1-4_80-perc_adjusted-labels.zip')
+    onset_detector = CnnOnsetDetector.from_zip('../models/onset_detection/20170511-3-channels_ds1-4_80-perc_adjusted-labels.zip')
 
     print('TEST')
     onset_detector.predict_print_metrics(wav_file_paths_test, truth_dataset_format_tuples_test)
@@ -45,9 +46,24 @@ def predict_file(wav_file):
                     in zip(wav_file_paths_test, truth_dataset_format_tuples_test)
                     if wav_file_path.endswith(wav_file)]
 
-    onset_detector = CnnOnsetDetector.from_zip('../models/20170511-3-channels_ds1-4_80-perc_adjusted-labels.zip')
+    onset_detector = CnnOnsetDetector.from_zip('../models/onset_detection/20170511-3-channels_ds1-4_80-perc_adjusted-labels.zip')
     onset_detector.predict_print_metrics([tuples_test[0][0]], [tuples_test[0][1]])
 
+
+def predict_files(wav_file_paths):
+    onset_detector = CnnOnsetDetector.from_zip('../models/onset_detection/20170511-3-channels_ds1-4_80-perc_adjusted-labels.zip')
+    for path_to_wav_file in wav_file_paths:
+        print(onset_detector.predict_onset_times_seconds(path_to_wav_file))
+
 # predict_test_split()
-predict_file(r'Ibanez 2820\fast\metal\audio\metal_2_180BPM.wav')
-predict_file(r'IDMT-SMT-GUITAR_V2\dataset3\audio\pathetique_mono.wav')
+
+# predict_file(r'Ibanez 2820\fast\metal\audio\metal_2_180BPM.wav')
+# predict_file(r'IDMT-SMT-GUITAR_V2\dataset3\audio\pathetique_mono.wav')
+
+dir = r'D:\Users\Michel\Documents\FH\module\8_IP6\input\IDMT-SMT-AUDIO-EFFECTS\Gitarre polyphon\Samples\NoFX'
+wav_file_paths = []
+n_files = 20
+for file in os.listdir(dir):
+    if file.endswith('.wav') and len(wav_file_paths) < n_files:
+        wav_file_paths.append(os.path.join(dir, file))
+predict_files(wav_file_paths)

@@ -37,7 +37,7 @@ tuning = (64, 59, 55, 50, 45, 40)
 n_frets = 24
 
 # PIPELINE
-onset_detector = CnnOnsetDetector.from_zip('../models/20170511-3-channels_ds1-4_80-perc_adjusted-labels.zip')
+onset_detector = CnnOnsetDetector.from_zip('../models/onset_detection/20170511-3-channels_ds1-4_80-perc_adjusted-labels.zip')
 onset_times_seconds = onset_detector.predict_onset_times_seconds(path_to_wav_file)
 
 pitch_detector = AubioPitchDetector(tuning, n_frets)
