@@ -24,6 +24,7 @@ from music_transcription.string_fret_detection.simple_string_fret_detection impo
 DATA_DIR = r'..\data'
 
 path_to_wav_file = os.path.join(DATA_DIR, r'IDMT-SMT-GUITAR_V2\dataset3\audio\pathetique_mono.wav')
+# path_to_wav_file = os.path.join(DATA_DIR, r'recordings\mim-riff1-short-slow.wav')
 
 # Standard tuning:
 # string / fret
@@ -34,6 +35,7 @@ path_to_wav_file = os.path.join(DATA_DIR, r'IDMT-SMT-GUITAR_V2\dataset3\audio\pa
 # 4/0 = 45
 # 5/0 = 40
 tuning = (64, 59, 55, 50, 45, 40)
+# tuning = (63, 58, 54, 49, 44, 39)
 n_frets = 24
 
 # PIPELINE
@@ -50,7 +52,10 @@ for onset, pitch, string, fret in zip(onset_times_seconds, pitches, strings, fre
     print('onset={}, pitch={}, string={}, fret={}'.format(onset, pitch, string, fret))
 
 beat_converter = SimpleBeatConverter()
-beat_converter.fit(path_to_wav_file)
+bpm_aubio = beat_converter.determine_pitch_aubio(path_to_wav_file)
+bpm_onset_times = beat_converter.determine_pitch_from_onsets(onset_times_seconds)
+print('\ttempo aubio:{}, tempo median of onsets:{}'.format(bpm_aubio, bpm_onset_times))
+# beat_converter.set_tempo(49)
 beats = beat_converter.transform(path_to_wav_file, onset_times_seconds, pitches, strings, frets)
 
 measures = []
@@ -75,3 +80,6 @@ write_gp5(
         track_title, '', '', '', '', '', '', '', '', ''
     )
 )
+
+
+# onset_detector.predict_print_metrics([path_to_wav_file], [(path_to_wav_file.replace(".wav", ".xml"), '', 'xml')])
