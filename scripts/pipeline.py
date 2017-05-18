@@ -52,9 +52,6 @@ for onset, pitch, string, fret in zip(onset_times_seconds, pitches, strings, fre
     print('onset={}, pitch={}, string={}, fret={}'.format(onset, pitch, string, fret))
 
 beat_converter = SimpleBeatConverter()
-bpm_aubio = beat_converter.determine_pitch_aubio(path_to_wav_file)
-bpm_onset_times = beat_converter.determine_pitch_from_onsets(onset_times_seconds)
-print('\ttempo aubio:{}, tempo median of onsets:{}'.format(bpm_aubio, bpm_onset_times))
 # beat_converter.set_tempo(49)
 beats = beat_converter.transform(path_to_wav_file, onset_times_seconds, pitches, strings, frets)
 
