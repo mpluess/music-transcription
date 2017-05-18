@@ -246,7 +246,7 @@ class CnnOnsetDetector:
 
     def __init__(self, feature_extractor=None, model=None,
                  frame_rate_hz=100, sample_rate=44100, subsampling_step=1, image_data_format='channels_first',
-                 winlen_nfft_per_channel=((0.046, 2048),)):
+                 winlen_nfft_per_channel=((0.023, 1024), (0.046, 2048), (0.092, 4096))):
         if feature_extractor is None:
             self.feature_extractor = CnnFeatureExtractor(frame_rate_hz=frame_rate_hz,
                                                          sample_rate=sample_rate,
@@ -259,7 +259,7 @@ class CnnOnsetDetector:
         self.model = model
 
     @classmethod
-    def from_zip(cls, path_to_zip, work_dir='zip_tmp'):
+    def from_zip(cls, path_to_zip, work_dir='zip_tmp_onset'):
         """Load CnnOnsetDetector from a zipfile containing a pickled CnnFeatureExtractor,
         a Keras model JSON file and a Keras weights HDF5 file."""
 
