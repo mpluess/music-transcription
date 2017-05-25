@@ -12,6 +12,7 @@ from sklearn.metrics import classification_report
 from sklearn.preprocessing import StandardScaler
 from zipfile import ZipFile
 
+from music_transcription.onset_detection.abstract_onset_detector import AbstractOnsetDetector
 from music_transcription.onset_detection.metrics import onset_metric
 from music_transcription.onset_detection.read_data import read_X, read_X_y
 
@@ -234,7 +235,7 @@ class CnnFeatureExtractor(BaseEstimator, TransformerMixin):
         return X_new
 
 
-class CnnOnsetDetector:
+class CnnOnsetDetector(AbstractOnsetDetector):
     FEATURE_EXTRACTOR_FILE = 'feature_extractor.pickle'
     MODEL_FILE = 'model.json'
     WEIGHTS_FILE = 'weights.hdf5'
@@ -247,6 +248,8 @@ class CnnOnsetDetector:
     def __init__(self, feature_extractor=None, model=None,
                  frame_rate_hz=100, sample_rate=44100, subsampling_step=1, image_data_format='channels_first',
                  winlen_nfft_per_channel=((0.023, 1024), (0.046, 2048), (0.092, 4096))):
+        super().__init__()
+
         if feature_extractor is None:
             self.feature_extractor = CnnFeatureExtractor(frame_rate_hz=frame_rate_hz,
                                                          sample_rate=sample_rate,
@@ -388,7 +391,9 @@ class CnnOnsetDetector:
 
         return model
 
-    def predict_onset_times_seconds(self, path_to_wav_file):
+    # TODO group onsets like pitch_detection.read_data rather than the filtering done here
+    # TODO check scores after doing this
+    def predict_onsets(self, path_to_wav_file):
         classes_filtered = self._predict_classes_filtered(path_to_wav_file)
         frame_rate_hz = self.feature_extractor.frame_rate_hz
 

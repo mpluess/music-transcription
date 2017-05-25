@@ -21,7 +21,7 @@ for wav_path in wav_file_paths:
     bpmstr = filename.split('_').pop()
     bpm_truth = int(bpmstr)
 
-    onset_times_seconds = onset_detector.predict_onset_times_seconds(wav_path)
+    onset_times_seconds = onset_detector.predict_onsets(wav_path)
 
     bpm_aubio = beat_converter.determine_pitch_aubio(wav_path)
     bpm_onset_times = beat_converter.determine_pitch_from_onsets(onset_times_seconds)

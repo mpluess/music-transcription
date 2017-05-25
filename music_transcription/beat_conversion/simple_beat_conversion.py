@@ -51,7 +51,8 @@ class SimpleBeatConverter:
             self.tempo = np.median(bpm).round()
         return self.tempo
 
-    def transform(self, path_to_wav_file, onset_times_seconds, pitches, strings, frets):
+    def transform(self, path_to_wav_file,
+                  onset_times_seconds, list_of_pitch_sets, list_of_string_lists, list_of_fret_lists):
         # beats = [  # measures
         #     [  # measure, tracks
         #         (  # track, 2 voices
@@ -72,7 +73,7 @@ class SimpleBeatConverter:
         current_measure = self._create_measure()
         m_len = 0  # length of current measure in beats (quarter notes)
         idx = 1
-        for (onset, pitch, string, fret) in zip(onset_times_seconds, pitches, strings, frets):
+        for (onset, strings, frets) in zip(onset_times_seconds, list_of_string_lists, list_of_fret_lists):
             diff = 1  # default diff = 1 beat (e.g. for last note)
             if idx < len(onset_times_seconds):
                 diff = onset_times_seconds[idx] - onset
@@ -85,7 +86,8 @@ class SimpleBeatConverter:
             gp5_duration *= -1  # flip sign as -2 is whole note and 2 is 16th, which is
 
             notes = [None, None, None, None, None, None, None]
-            notes[string] = note(fret)
+            for string, fret in zip(strings, frets):
+                notes[string] = note(fret)
             current_measure[0][0].append(beat(notes, duration=gp5_duration))
             if m_len >= self.beats_per_measure:
                 m_len = 0

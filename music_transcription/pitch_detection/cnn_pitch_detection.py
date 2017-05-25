@@ -337,12 +337,25 @@ class CnnPitchDetector(AbstractPitchDetector):
 
         return model
 
-    # TODO at least one pitch
-    def predict(self, path_to_wav_file, onset_times_seconds):
+    def predict(self, path_to_wav_file, onset_times_seconds, epsilon=1e-7):
         samples = read_samples(path_to_wav_file,
                                self.feature_extractor.frame_rate_hz,
                                self.feature_extractor.sample_rate,
                                self.feature_extractor.subsampling_step)
         X = self.feature_extractor.transform(([samples], [onset_times_seconds]))
 
-        return self.model.predict(X) > self.config['proba_threshold']
+        proba_matrix = self.model.predict(X)
+        y = proba_matrix > self.config['proba_threshold']
+        y = y.astype(np.int8)
+
+        # Make sure at least one pitch is returned.
+        for probas, labels in zip(proba_matrix, y):
+            if labels.sum() == 0:
+                max_proba = max(probas)
+                max_index = np.where(np.logical_and(probas > max_proba - epsilon, probas < max_proba + epsilon))[0][0]
+                labels[max_index] = 1
+
+        return y
+
+    def predict_pitches(self, path_to_wav_file, onset_times_seconds):
+        return self.multilabel_matrix_to_pitch_sets(self.predict(path_to_wav_file, onset_times_seconds))

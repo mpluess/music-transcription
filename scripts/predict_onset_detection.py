@@ -53,7 +53,7 @@ def predict_file(wav_file):
 def predict_files(wav_file_paths):
     onset_detector = CnnOnsetDetector.from_zip('../models/onset_detection/20170511-3-channels_ds1-4_80-perc_adjusted-labels.zip')
     for path_to_wav_file in wav_file_paths:
-        print(onset_detector.predict_onset_times_seconds(path_to_wav_file))
+        print(onset_detector.predict_onsets(path_to_wav_file))
 
 # predict_test_split()
 

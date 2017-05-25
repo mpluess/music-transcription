@@ -12,6 +12,9 @@ class AubioPitchDetector(AbstractPitchDetector):
         super().__init__(tuning, n_frets)
 
     def predict(self, path_to_wav_file, onset_times_seconds):
+        return self.pitch_sets_to_multilabel_matrix(self.predict_pitches(path_to_wav_file, onset_times_seconds))
+
+    def predict_pitches(self, path_to_wav_file, onset_times_seconds):
         window_size = 4096  # fft size = 93ms
         src = aubio.source(path_to_wav_file, hop_size=512)
 
@@ -61,4 +64,4 @@ class AubioPitchDetector(AbstractPitchDetector):
             list_of_pitch_sets.append({pitch})
             s_last = s_next + offset2
 
-        return self.pitch_sets_to_multilabel_matrix(list_of_pitch_sets)
+        return list_of_pitch_sets
