@@ -12,7 +12,7 @@ wav_file_paths_train, wav_file_paths_test, truth_dataset_format_tuples_train, tr
     wav_file_paths, truth_dataset_format_tuples, test_size=0.2, random_state=42
 )
 
-onset_detector = CnnOnsetDetector(winlen_nfft_per_channel=((0.023, 1024), (0.046, 2048), (0.092, 4096)))
+onset_detector = CnnOnsetDetector()
 onset_detector.fit(
     wav_file_paths_train, truth_dataset_format_tuples_train,
     # wav_file_paths_test, truth_dataset_format_tuples_test

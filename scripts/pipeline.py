@@ -43,7 +43,7 @@ onset_detector = CnnOnsetDetector.from_zip('../models/onset_detection/20170511-3
 onset_times_seconds = onset_detector.predict_onset_times_seconds(path_to_wav_file)
 
 pitch_detector = AubioPitchDetector(tuning, n_frets)
-pitches = pitch_detector.predict_pitches_monophonic(path_to_wav_file, onset_times_seconds)
+pitches = pitch_detector.predict(path_to_wav_file, onset_times_seconds)
 
 string_fret_detector = SimpleStringFretDetection(tuning, n_frets)
 strings, frets = string_fret_detector.predict_strings_and_frets(path_to_wav_file, onset_times_seconds, pitches)

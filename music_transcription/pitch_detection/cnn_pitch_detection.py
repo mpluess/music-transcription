@@ -8,29 +8,23 @@ import pickle
 from python_speech_features import fbank, logfbank
 import shutil
 from sklearn.base import BaseEstimator, TransformerMixin
-from sklearn.preprocessing import MultiLabelBinarizer, StandardScaler
+from sklearn.preprocessing import StandardScaler
 from warnings import warn
 from zipfile import ZipFile
 
-from music_transcription.pitch_detection.read_data import read_X_y
+from music_transcription.pitch_detection.abstract_pitch_detector import AbstractPitchDetector
+from music_transcription.pitch_detection.read_data import read_samples, read_data_y
 
 
 class CnnFeatureExtractor(BaseEstimator, TransformerMixin):
-    EPSILON = 1e-7
-
-    def __init__(self, frame_rate_hz, sample_rate, subsampling_step, image_data_format, winlen_nfft_per_channel,
-                 onset_group_threshold_seconds, min_pitch, max_pitch):
+    def __init__(self, frame_rate_hz, sample_rate, subsampling_step, image_data_format, winlen_nfft_per_channel):
         self.frame_rate_hz = frame_rate_hz
         self.sample_rate = sample_rate
         self.subsampling_step = subsampling_step
         self.image_data_format = image_data_format
         self.winlen_nfft_per_channel = winlen_nfft_per_channel
-        self.onset_group_threshold_seconds = onset_group_threshold_seconds
-        self.min_pitch = min_pitch
-        self.max_pitch = max_pitch
 
         self.standard_scalers_per_channel = None
-        self.label_binarizer = None
 
     def fit(self, data, y=None):
         list_of_samples, _ = data
@@ -49,12 +43,9 @@ class CnnFeatureExtractor(BaseEstimator, TransformerMixin):
                 standard_scalers.append(standard_scaler)
             self.standard_scalers_per_channel.append(standard_scalers)
 
-        self.label_binarizer = MultiLabelBinarizer(classes=range(self.min_pitch, self.max_pitch + 1))
-        self.label_binarizer.fit(None)
-
         return self
 
-    def transform(self, data, list_of_pitches=None):
+    def transform(self, data):
         list_of_samples, list_of_onset_times = data
 
         X_channels, n_frames_after_cutoff_per_file = self._extract_spectrogram_features(list_of_samples)
@@ -71,17 +62,9 @@ class CnnFeatureExtractor(BaseEstimator, TransformerMixin):
             print(X.mean())
             print(X.std())
 
-        list_of_onset_times_grouped, list_of_pitches_grouped = self._group_onsets(list_of_onset_times, list_of_pitches)
         for i in range(len(X_channels)):
-            X_channels[i] = self._get_X_after_onset_with_context(X_channels[i], list_of_onset_times_grouped, n_frames_after_cutoff_per_file)
+            X_channels[i] = self._get_X_after_onset_with_context(X_channels[i], list_of_onset_times, n_frames_after_cutoff_per_file)
             print(X_channels[i].shape)
-
-        if list_of_pitches_grouped is None:
-            y = None
-        else:
-            pitch_groups_flat = [pitch_group for pitches_grouped in list_of_pitches_grouped for pitch_group in pitches_grouped]
-            assert len(pitch_groups_flat) == X_channels[0].shape[0]
-            y = self.label_binarizer.transform(pitch_groups_flat)
 
         print('Reshaping data')
         img_rows, img_cols = (X_channels[0].shape[1], X_channels[0].shape[2])
@@ -100,7 +83,7 @@ class CnnFeatureExtractor(BaseEstimator, TransformerMixin):
         X = np.concatenate(X_channels, axis=1)
         print(X.shape)
 
-        return X, y
+        return X
 
     def _extract_spectrogram_features(self, list_of_samples):
         print('Creating spectrograms')
@@ -143,47 +126,6 @@ class CnnFeatureExtractor(BaseEstimator, TransformerMixin):
             n_frames = filterbank.shape[0]
         return filterbank[:n_frames, :], n_frames
 
-    def _group_onsets(self, list_of_onset_times, list_of_pitches):
-        """Assumes onset times per file are sorted (pitch_detection.read_data.read_y does that).
-
-        Group onsets and corresponding pitches in a way that onsets closer than self.onset_group_threshold_seconds
-        belong to the same group.
-        """
-
-        # TODO list_of_pitches is None
-        list_of_onset_times_grouped = []
-        list_of_pitches_grouped = []
-        return_pitches = True
-        if list_of_pitches is None:
-            return_pitches = False
-            list_of_pitches = [[0] * len(onset_times) for onset_times in list_of_onset_times]
-        for onset_times, pitches in zip(list_of_onset_times, list_of_pitches):
-            onset_times_grouped = []
-            pitches_grouped = []
-            last_onset = None
-            onset_group_start = None
-            onset_group_pitches = set()
-            for onset_time, pitch in zip(onset_times, pitches):
-                if last_onset is not None and onset_time - last_onset > self.onset_group_threshold_seconds - self.EPSILON:
-                    onset_times_grouped.append(onset_group_start)
-                    pitches_grouped.append(onset_group_pitches)
-                    onset_group_start = None
-                    onset_group_pitches = set()
-                last_onset = onset_time
-                if onset_group_start is None:
-                    onset_group_start = onset_time
-                onset_group_pitches.add(pitch)
-            onset_times_grouped.append(onset_group_start)
-            pitches_grouped.append(onset_group_pitches)
-
-            list_of_onset_times_grouped.append(onset_times_grouped)
-            list_of_pitches_grouped.append(pitches_grouped)
-
-        if return_pitches:
-            return list_of_onset_times_grouped, list_of_pitches_grouped
-        else:
-            return list_of_onset_times_grouped, None
-
     def _get_X_after_onset_with_context(self, X, list_of_onset_times_grouped, n_frames_after_cutoff_per_file,
                                         c=10, border_value=0.0):
         n_samples = X.shape[0]
@@ -221,32 +163,39 @@ class CnnFeatureExtractor(BaseEstimator, TransformerMixin):
         return X_new
 
 
-class CnnPitchDetector:
+class CnnPitchDetector(AbstractPitchDetector):
+    CONFIG_FILE = 'config.pickle'
     FEATURE_EXTRACTOR_FILE = 'feature_extractor.pickle'
     MODEL_FILE = 'model.json'
     WEIGHTS_FILE = 'weights.hdf5'
 
     LOSS = 'binary_crossentropy'
     OPTIMIZER = 'adam'
-    METRICS = ['accuracy']
+    METRICS = None
     BATCH_SIZE = 1024
 
-    def __init__(self, feature_extractor=None, model=None,
+    def __init__(self,
+                 # loaded config, feature extractor and model
+                 config=None, feature_extractor=None, model=None,
+
+                 # config params
+                 tuning=(64, 59, 55, 50, 45, 40), n_frets=24, proba_threshold=0.3,
+
+                 # feature extractor params
                  frame_rate_hz=100, sample_rate=44100, subsampling_step=1, image_data_format='channels_first',
-                 winlen_nfft_per_channel=((0.023, 1024), (0.046, 2048), (0.092, 4096)),
-                 onset_group_threshold_seconds=0.03,
-                 tuning=(64, 59, 55, 50, 45, 40), n_frets=24):
+                 winlen_nfft_per_channel=((0.023, 1024), (0.046, 2048), (0.092, 4096))):
+        if config is None:
+            super().__init__(tuning, n_frets)
+            self.config['proba_threshold'] = proba_threshold
+        else:
+            self.config = config
+
         if feature_extractor is None:
-            min_pitch = min(tuning)
-            max_pitch = max(tuning) + n_frets
             self.feature_extractor = CnnFeatureExtractor(frame_rate_hz=frame_rate_hz,
                                                          sample_rate=sample_rate,
                                                          subsampling_step=subsampling_step,
                                                          image_data_format=image_data_format,
-                                                         winlen_nfft_per_channel=winlen_nfft_per_channel,
-                                                         onset_group_threshold_seconds=onset_group_threshold_seconds,
-                                                         min_pitch=min_pitch,
-                                                         max_pitch=max_pitch)
+                                                         winlen_nfft_per_channel=winlen_nfft_per_channel)
         else:
             self.feature_extractor = feature_extractor
 
@@ -262,19 +211,20 @@ class CnnPitchDetector:
 
         with ZipFile(path_to_zip) as zip_file:
             zip_file.extractall(path=work_dir)
-            feature_extractor = cls._load_feature_extractor(work_dir)
+            config = cls._load_pickled_object(work_dir, cls.CONFIG_FILE)
+            feature_extractor = cls._load_pickled_object(work_dir, cls.FEATURE_EXTRACTOR_FILE)
             model = cls._load_model(work_dir)
         shutil.rmtree(work_dir)
 
-        return cls(feature_extractor, model)
+        return cls(config=config, feature_extractor=feature_extractor, model=model)
 
     @classmethod
-    def _load_feature_extractor(cls, path_to_model_folder):
-        """Load feature extractor"""
+    def _load_pickled_object(cls, path_to_model_folder, filename):
+        """Load pickled object"""
 
-        with open(os.path.join(path_to_model_folder, cls.FEATURE_EXTRACTOR_FILE), 'rb') as f:
-            feature_extractor = pickle.load(f)
-        return feature_extractor
+        with open(os.path.join(path_to_model_folder, filename), 'rb') as f:
+            loaded_object = pickle.load(f)
+        return loaded_object
 
     @classmethod
     def _load_model(cls, path_to_model_folder):
@@ -289,7 +239,9 @@ class CnnPitchDetector:
         return model
 
     def save(self, path_to_zip, work_dir='zip_tmp_pitch'):
-        """Save this CnnPitchDetector to a zipfile containing a pickled CnnFeatureExtractor, a Keras model JSON file and a Keras weights HDF5 file."""
+        """Save this CnnPitchDetector to a zipfile containing a pickled config, a pickled CnnFeatureExtractor,
+        a Keras model JSON file and a Keras weights HDF5 file.
+        """
 
         if os.path.exists(path_to_zip):
             path_to_zip_orig = path_to_zip
@@ -301,6 +253,11 @@ class CnnPitchDetector:
         os.makedirs(work_dir)
 
         to_zip = []
+        path_to_file = os.path.join(work_dir, self.CONFIG_FILE)
+        with open(path_to_file, 'wb') as f:
+            pickle.dump(self.config, f)
+        to_zip.append(path_to_file)
+
         path_to_file = os.path.join(work_dir, self.FEATURE_EXTRACTOR_FILE)
         with open(path_to_file, 'wb') as f:
             pickle.dump(self.feature_extractor, f)
@@ -322,35 +279,34 @@ class CnnPitchDetector:
 
     def fit(self, wav_file_paths_train, truth_dataset_format_tuples_train,
             wav_file_paths_val=None, truth_dataset_format_tuples_val=None):
-        data_train, list_of_pitches_train = read_X_y(wav_file_paths_train, truth_dataset_format_tuples_train,
-                                                     self.feature_extractor.frame_rate_hz,
-                                                     self.feature_extractor.sample_rate,
-                                                     self.feature_extractor.subsampling_step,
-                                                     self.feature_extractor.min_pitch, self.feature_extractor.max_pitch)
+        data_train, y_train = read_data_y(wav_file_paths_train, truth_dataset_format_tuples_train,
+                                          self.feature_extractor.frame_rate_hz,
+                                          self.feature_extractor.sample_rate,
+                                          self.feature_extractor.subsampling_step,
+                                          self.config['min_pitch'], self.config['max_pitch'])
         self.feature_extractor.fit(data_train)
-        X_train, y_train = self.feature_extractor.transform(data_train, list_of_pitches_train)
+        X_train = self.feature_extractor.transform(data_train)
         input_shape = (X_train.shape[1], X_train.shape[2], X_train.shape[3])
-        print(y_train)
 
         if wav_file_paths_val is not None and truth_dataset_format_tuples_val is not None:
-            data_val, list_of_pitches_val = read_X_y(wav_file_paths_val, truth_dataset_format_tuples_val,
-                                                     self.feature_extractor.frame_rate_hz,
-                                                     self.feature_extractor.sample_rate,
-                                                     self.feature_extractor.subsampling_step,
-                                                     self.feature_extractor.min_pitch,
-                                                     self.feature_extractor.max_pitch)
-            X_val, y_val = self.feature_extractor.transform(data_val, list_of_pitches_val)
+            data_val, y_val = read_data_y(wav_file_paths_val, truth_dataset_format_tuples_val,
+                                          self.feature_extractor.frame_rate_hz,
+                                          self.feature_extractor.sample_rate,
+                                          self.feature_extractor.subsampling_step,
+                                          self.config['min_pitch'],
+                                          self.config['max_pitch'])
+            X_val = self.feature_extractor.transform(data_val)
             validation_data = (X_val, y_val)
             print(y_val)
         else:
             validation_data = None
 
         self.model = self._create_model(input_shape,
-                                        self.feature_extractor.max_pitch - self.feature_extractor.min_pitch + 1)
+                                        self.config['max_pitch'] - self.config['min_pitch'] + 1)
         self.model.fit(X_train, y_train,
                        epochs=500,
                        batch_size=self.BATCH_SIZE,
-                       callbacks=[EarlyStopping(monitor='loss', patience=5)], verbose=2,
+                       callbacks=[EarlyStopping(monitor='loss', patience=8)], verbose=2,
                        validation_data=validation_data)
 
     @classmethod
@@ -380,3 +336,13 @@ class CnnPitchDetector:
         model.compile(loss=cls.LOSS, optimizer=cls.OPTIMIZER, metrics=cls.METRICS)
 
         return model
+
+    # TODO at least one pitch
+    def predict(self, path_to_wav_file, onset_times_seconds):
+        samples = read_samples(path_to_wav_file,
+                               self.feature_extractor.frame_rate_hz,
+                               self.feature_extractor.sample_rate,
+                               self.feature_extractor.subsampling_step)
+        X = self.feature_extractor.transform(([samples], [onset_times_seconds]))
+
+        return self.model.predict(X) > self.config['proba_threshold']

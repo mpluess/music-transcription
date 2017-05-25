@@ -4,14 +4,14 @@
 
 import aubio
 
+from music_transcription.pitch_detection.abstract_pitch_detector import AbstractPitchDetector
 
-class AubioPitchDetector:
-    def __init__(self, tuning, n_frets):
-        self.tuning = tuning
-        self.n_frets = n_frets
 
-    def predict_pitches_monophonic(self, path_to_wav_file, onset_times_seconds):
-        min_pitch = min(self.tuning)
+class AubioPitchDetector(AbstractPitchDetector):
+    def __init__(self, tuning=(64, 59, 55, 50, 45, 40), n_frets=24):
+        super().__init__(tuning, n_frets)
+
+    def predict(self, path_to_wav_file, onset_times_seconds):
         window_size = 4096  # fft size = 93ms
         src = aubio.source(path_to_wav_file, hop_size=512)
 
@@ -20,7 +20,7 @@ class AubioPitchDetector:
         pitch_o.set_unit("midi")  # output as midi-pitch (as opposed to Hz)
         # pitch_o.set_tolerance(0.5)  # default for yinfft is 0.85, but having a pitch is more important here.
 
-        pitches = []
+        list_of_pitch_sets = []
         s_last = 0
         offset = int(window_size / src.hop_size)
         offset2 = int(round(offset/2))
@@ -52,10 +52,13 @@ class AubioPitchDetector:
                     ))
                 confidence = max(confidence, conf2)  # update confidence if it was the same note
 
-            if pitch < min_pitch:
-                print("WARNING: estimated pitch is lower than given tuning! => set to minimum:", pitch, '=>', min_pitch)
-                pitch = min_pitch
-            pitches.append(pitch)
+            if pitch < self.config['min_pitch']:
+                print("WARNING: estimated pitch is lower than given tuning! => set to minimum:", pitch, '=>', self.config['min_pitch'])
+                pitch = self.config['min_pitch']
+            elif pitch > self.config['max_pitch']:
+                print("WARNING: estimated pitch is higher than possible on this guitar configuration! => set to maximum:", pitch, '=>', self.config['max_pitch'])
+                pitch = self.config['max_pitch']
+            list_of_pitch_sets.append({pitch})
             s_last = s_next + offset2
 
-        return pitches
+        return self.pitch_sets_to_multilabel_matrix(list_of_pitch_sets)

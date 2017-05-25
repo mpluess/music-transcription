@@ -19,9 +19,4 @@ pitch_detector.fit(
     wav_file_paths_train, truth_dataset_format_tuples_train,
     wav_file_paths_test, truth_dataset_format_tuples_test,
 )
-pitch_detector.save('../models/pitch_detection/20170518_1718.zip')
-
-# print('TRAIN')
-# pitch_detector.predict_print_metrics(wav_file_paths_train, truth_dataset_format_tuples_train, onset_time_lists_train)
-# print('TEST')
-# pitch_detector.predict_print_metrics(wav_file_paths_test, truth_dataset_format_tuples_test, onset_time_lists_test)
+pitch_detector.save('../models/pitch_detection/20170525_1345.zip')

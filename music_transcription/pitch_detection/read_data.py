@@ -1,3 +1,4 @@
+from sklearn.preprocessing import MultiLabelBinarizer
 import soundfile
 from warnings import warn
 from xml.etree import ElementTree
@@ -17,9 +18,9 @@ def get_wav_and_truth_files(active_datasets):
     return music_transcription.onset_detection.read_data.get_wav_and_truth_files(active_datasets)
 
 
-def read_X_y(wav_file_paths, truth_dataset_format_tuples,
-             frame_rate_hz, sample_rate, subsampling_step,
-             min_pitch, max_pitch):
+def read_data_y(wav_file_paths, truth_dataset_format_tuples,
+                frame_rate_hz, sample_rate, subsampling_step,
+                min_pitch, max_pitch, onset_group_threshold_seconds=0.03):
     list_of_samples = []
     list_of_onset_times = []
     list_of_pitches = []
@@ -27,16 +28,29 @@ def read_X_y(wav_file_paths, truth_dataset_format_tuples,
         if truth_format != 'xml':
             raise ValueError('Unsupported format {}'.format(truth_format))
         samples = read_samples(path_to_wav, frame_rate_hz, sample_rate, subsampling_step)
-        onset_times, pitches = read_onset_times_pitches(path_to_xml, min_pitch, max_pitch, dataset)
-        if samples is not None and onset_times is not None and pitches is not None:
+        onset_times_grouped, pitches_grouped = _read_onset_times_pitches(path_to_xml, min_pitch, max_pitch, dataset,
+                                                         onset_group_threshold_seconds)
+        if samples is not None and onset_times_grouped is not None and pitches_grouped is not None:
             list_of_samples.append(samples)
-            list_of_onset_times.append(onset_times)
-            list_of_pitches.append(pitches)
+            list_of_onset_times.append(onset_times_grouped)
+            list_of_pitches.append(pitches_grouped)
 
-    return (list_of_samples, list_of_onset_times), list_of_pitches
+    label_binarizer = MultiLabelBinarizer(classes=range(min_pitch, max_pitch + 1))
+    label_binarizer.fit(None)
+
+    pitch_groups_flat = [pitch_group for pitches_grouped in list_of_pitches for pitch_group in pitches_grouped]
+    assert len(pitch_groups_flat) == sum([len(onset_times) for onset_times in list_of_onset_times])
+    y = label_binarizer.transform(pitch_groups_flat)
+
+    return (list_of_samples, list_of_onset_times), y
 
 
 def read_samples(path_to_wav, frame_rate_hz, expected_sample_rate, subsampling_step):
+    """WARNING: Only use this function if you don't have labels for a file. Otherwise always use read_X_y, even
+    if you don't need the labels at this moment. read_X_y makes sure files without proper labels are filtered out.
+    When using read_samples directly, there's a chance samples and labels will be out of sync.
+    """
+
     samples, sample_rate = soundfile.read(path_to_wav)
     if len(samples.shape) > 1:
         warn('Skipping ' + path_to_wav + ', cannot handle stereo signal.')
@@ -51,7 +65,7 @@ def read_samples(path_to_wav, frame_rate_hz, expected_sample_rate, subsampling_s
     return samples[::subsampling_step]
 
 
-def read_onset_times_pitches(path_to_xml, min_pitch, max_pitch, dataset):
+def _read_onset_times_pitches(path_to_xml, min_pitch, max_pitch, dataset, onset_group_threshold_seconds):
     tree = ElementTree.parse(path_to_xml)
     root = tree.getroot()
     onset_times = []
@@ -83,4 +97,34 @@ def read_onset_times_pitches(path_to_xml, min_pitch, max_pitch, dataset):
     onset_times = [t[0] for t in onset_pitch_tuples_sorted]
     pitches = [t[1] for t in onset_pitch_tuples_sorted]
 
-    return onset_times, pitches
+    onset_times_grouped, pitches_grouped = _group_onsets(onset_times, pitches, onset_group_threshold_seconds)
+
+    return onset_times_grouped, pitches_grouped
+
+
+def _group_onsets(onset_times, pitches, onset_group_threshold_seconds, epsilon=1e-6):
+    """Assumes onset times are sorted (pitch_detection.read_data.read_y does that).
+
+    Group onsets and corresponding pitches in a way that onsets closer than onset_group_threshold_seconds
+    belong to the same group.
+    """
+
+    onset_times_grouped = []
+    pitches_grouped = []
+    last_onset = None
+    onset_group_start = None
+    onset_group_pitches = set()
+    for onset_time, pitch in zip(onset_times, pitches):
+        if last_onset is not None and onset_time - last_onset > onset_group_threshold_seconds - epsilon:
+            onset_times_grouped.append(onset_group_start)
+            pitches_grouped.append(onset_group_pitches)
+            onset_group_start = None
+            onset_group_pitches = set()
+        last_onset = onset_time
+        if onset_group_start is None:
+            onset_group_start = onset_time
+        onset_group_pitches.add(pitch)
+    onset_times_grouped.append(onset_group_start)
+    pitches_grouped.append(onset_group_pitches)
+
+    return onset_times_grouped, pitches_grouped
