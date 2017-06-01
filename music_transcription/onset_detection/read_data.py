@@ -14,6 +14,7 @@ DATASET_CORRECTIONS = {
     2: 0.03,
     3: 0.0,
     4: 0.0,
+    5: 0.0,
 }
 
 
@@ -40,7 +41,6 @@ def get_wav_and_truth_files(active_datasets):
                 os.path.join(path_to_ds_1, guitar_desc, 'annotation'),
                 1,
             ))
-
     if 2 in active_datasets:
         dir_tuples.append((
             os.path.join(DATA_DIR, r'IDMT-SMT-GUITAR_V2\dataset2\audio'),
@@ -52,6 +52,12 @@ def get_wav_and_truth_files(active_datasets):
             os.path.join(DATA_DIR, r'IDMT-SMT-GUITAR_V2\dataset3\audio'),
             os.path.join(DATA_DIR, r'IDMT-SMT-GUITAR_V2\dataset3\annotation'),
             3,
+        ))
+    if 5 in active_datasets:
+        dir_tuples.append((
+            os.path.join(DATA_DIR, r'recordings\audio'),
+            os.path.join(DATA_DIR, r'recordings\annotation'),
+            5,
         ))
 
     wav_file_paths = []

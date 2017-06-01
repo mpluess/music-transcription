@@ -4,16 +4,17 @@ from sklearn.model_selection import train_test_split
 
 from music_transcription.pitch_detection.read_data import get_wav_and_truth_files, read_data_y
 
-active_datasets = {1, 2, 3}
+# active_datasets = {1, 2, 3}
+# wav_file_paths, truth_dataset_format_tuples = get_wav_and_truth_files(active_datasets)
+# (
+#     wav_file_paths_train, wav_file_paths_test,
+#     truth_dataset_format_tuples_train, truth_dataset_format_tuples_test
+# ) = train_test_split(
+#     wav_file_paths, truth_dataset_format_tuples, test_size=0.2, random_state=42
+# )
 
-wav_file_paths, truth_dataset_format_tuples = get_wav_and_truth_files(active_datasets)
-
-(
-    wav_file_paths_train, wav_file_paths_test,
-    truth_dataset_format_tuples_train, truth_dataset_format_tuples_test
-) = train_test_split(
-    wav_file_paths, truth_dataset_format_tuples, test_size=0.2, random_state=42
-)
+active_datasets = {5}
+wav_file_paths_test, truth_dataset_format_tuples_test = get_wav_and_truth_files(active_datasets)
 
 # wav_file_paths_test = [r'..\data\IDMT-SMT-GUITAR_V2\dataset3\audio\nocturneNr2.wav']
 # truth_dataset_format_tuples_test = [(r'..\data\IDMT-SMT-GUITAR_V2\dataset3\annotation\nocturneNr2.xml', 3, 'xml')]

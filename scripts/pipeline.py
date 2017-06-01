@@ -23,9 +23,9 @@ from music_transcription.string_fret_detection.simple_string_fret_detection impo
 # CONFIG
 DATA_DIR = r'..\data'
 
-path_to_wav_file = os.path.join(DATA_DIR, r'IDMT-SMT-GUITAR_V2\dataset3\audio\pathetique_mono.wav')
+# path_to_wav_file = os.path.join(DATA_DIR, r'IDMT-SMT-GUITAR_V2\dataset3\audio\pathetique_mono.wav')
 # path_to_wav_file = os.path.join(DATA_DIR, r'IDMT-SMT-GUITAR_V2\dataset3\audio\nocturneNr2.wav')
-# path_to_wav_file = os.path.join(DATA_DIR, r'recordings\mim-riff1-short-slow.wav')
+path_to_wav_file = os.path.join(DATA_DIR, r'recordings\audio\mim-riff1-short-slow.wav')
 
 # Standard tuning:
 # string / fret
