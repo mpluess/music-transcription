@@ -203,7 +203,7 @@ class CnnPitchDetector(AbstractPitchDetector):
 
     @classmethod
     def from_zip(cls, path_to_zip, work_dir='zip_tmp'):
-        """Load CnnPitchDetector from a zipfile containing a pickled CnnFeatureExtractor, a Keras model JSON file and a Keras weights HDF5 file."""
+        """Load CnnPitchDetector from a zipfile containing a pickled config dict, a pickled CnnFeatureExtractor, a Keras model JSON file and a Keras weights HDF5 file."""
 
         if os.path.exists(work_dir):
             shutil.rmtree(work_dir)

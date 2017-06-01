@@ -8,6 +8,14 @@ from warnings import warn
 
 DATA_DIR = r'..\data'
 
+# Correction of onset times in seconds (see onset_detection.read_data._set_onset_label_adjusted_with_neighbors)
+DATASET_CORRECTIONS = {
+    1: 0.0,
+    2: 0.03,
+    3: 0.0,
+    4: 0.0,
+}
+
 
 def get_wav_and_truth_files(active_datasets):
     """Get wave files and truth information. Return a tuple (wav_file_paths, truth_dataset_format_tuples)
@@ -224,3 +232,71 @@ def _set_onset_label_adjusted_with_neighbors(y, y_actual_onset_only, index, data
     end = min(len(y), index + 2)
     y[start:end] = 1
     y_actual_onset_only[index] = 1
+
+
+def read_onset_times(path_to_truth, dataset, truth_format, onset_group_threshold_seconds):
+    if truth_format == 'xml':
+        onset_times = _read_onset_times_xml(path_to_truth, dataset)
+    elif truth_format == 'csv':
+        onset_times = _read_onset_times_csv(path_to_truth, dataset)
+    else:
+        raise ValueError('Unknown truth format')
+
+    onset_times = sorted(onset_times)
+    onset_times_grouped = group_onsets(onset_times, onset_group_threshold_seconds)
+
+    return onset_times_grouped
+
+
+def _read_onset_times_xml(path_to_xml, dataset):
+    tree = ElementTree.parse(path_to_xml)
+    root = tree.getroot()
+    onset_times = []
+    for root_child in root:
+        if root_child.tag == 'transcription':
+            for event in root_child:
+                if event.tag != 'event':
+                    raise ValueError('Unexpected XML element, expected event, got ' + event.tag)
+                onset_time = None
+                for event_child in event:
+                    if event_child.tag == 'onsetSec':
+                        onset_time = float(event_child.text) + DATASET_CORRECTIONS[dataset]
+                if onset_time is not None:
+                    onset_times.append(onset_time)
+                else:
+                    raise ValueError('File {} does not contain onset information.'.format(path_to_xml))
+            break
+
+    return onset_times
+
+
+def _read_onset_times_csv(path_to_csv, dataset):
+    onset_times = []
+    with open(path_to_csv) as f:
+        for line in f:
+            line_split = line.rstrip().split(',')
+            onset_time = float(line_split[0])
+            onset_times.append(onset_time)
+
+    return onset_times
+
+
+def group_onsets(onset_times, onset_group_threshold_seconds, epsilon=1e-6):
+    """Assumes onset times are sorted.
+
+    Group onsets in a way that onsets closer than onset_group_threshold_seconds belong to the same group.
+    """
+
+    onset_times_grouped = []
+    last_onset = None
+    onset_group_start = None
+    for onset_time in onset_times:
+        if last_onset is not None and onset_time - last_onset > onset_group_threshold_seconds + epsilon:
+            onset_times_grouped.append(onset_group_start)
+            onset_group_start = None
+        last_onset = onset_time
+        if onset_group_start is None:
+            onset_group_start = onset_time
+    onset_times_grouped.append(onset_group_start)
+
+    return onset_times_grouped

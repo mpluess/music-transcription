@@ -46,8 +46,8 @@ def read_data_y(wav_file_paths, truth_dataset_format_tuples,
 
 
 def read_samples(path_to_wav, frame_rate_hz, expected_sample_rate, subsampling_step):
-    """WARNING: Only use this function if you don't have labels for a file. Otherwise always use read_X_y, even
-    if you don't need the labels at this moment. read_X_y makes sure files without proper labels are filtered out.
+    """WARNING: Only use this function if you don't have labels for a file. Otherwise always use read_data_y, even
+    if you don't need the labels at this moment. read_data_y makes sure files without proper labels are filtered out.
     When using read_samples directly, there's a chance samples and labels will be out of sync.
     """
 
@@ -115,7 +115,7 @@ def _group_onsets(onset_times, pitches, onset_group_threshold_seconds, epsilon=1
     onset_group_start = None
     onset_group_pitches = set()
     for onset_time, pitch in zip(onset_times, pitches):
-        if last_onset is not None and onset_time - last_onset > onset_group_threshold_seconds - epsilon:
+        if last_onset is not None and onset_time - last_onset > onset_group_threshold_seconds + epsilon:
             onset_times_grouped.append(onset_group_start)
             pitches_grouped.append(onset_group_pitches)
             onset_group_start = None

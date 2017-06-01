@@ -23,8 +23,8 @@ from music_transcription.string_fret_detection.simple_string_fret_detection impo
 # CONFIG
 DATA_DIR = r'..\data'
 
-# path_to_wav_file = os.path.join(DATA_DIR, r'IDMT-SMT-GUITAR_V2\dataset3\audio\pathetique_mono.wav')
-path_to_wav_file = os.path.join(DATA_DIR, r'IDMT-SMT-GUITAR_V2\dataset3\audio\nocturneNr2.wav')
+path_to_wav_file = os.path.join(DATA_DIR, r'IDMT-SMT-GUITAR_V2\dataset3\audio\pathetique_mono.wav')
+# path_to_wav_file = os.path.join(DATA_DIR, r'IDMT-SMT-GUITAR_V2\dataset3\audio\nocturneNr2.wav')
 # path_to_wav_file = os.path.join(DATA_DIR, r'recordings\mim-riff1-short-slow.wav')
 
 # Standard tuning:
@@ -40,7 +40,7 @@ tuning = (64, 59, 55, 50, 45, 40)
 n_frets = 24
 
 # PIPELINE
-onset_detector = CnnOnsetDetector.from_zip('../models/onset_detection/20170511-3-channels_ds1-4_80-perc_adjusted-labels.zip')
+onset_detector = CnnOnsetDetector.from_zip('../models/onset_detection/20170601-3-channels_ds1-4_80-perc_adjusted-labels_with_config.zip')
 onset_times_seconds = onset_detector.predict_onsets(path_to_wav_file)
 
 pitch_detector = CnnPitchDetector.from_zip('../models/pitch_detection/20170525_1345.zip')
@@ -80,5 +80,3 @@ write_gp5(
         track_title, '', '', '', '', '', '', '', '', ''
     )
 )
-
-# onset_detector.predict_print_metrics([path_to_wav_file], [(path_to_wav_file.replace(".wav", ".xml"), '', 'xml')])

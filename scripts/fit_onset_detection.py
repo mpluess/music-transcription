@@ -18,8 +18,3 @@ onset_detector.fit(
     # wav_file_paths_test, truth_dataset_format_tuples_test
 )
 onset_detector.save('../models/onset_detection/20170511-3-channels_ds1-4_80-perc_adjusted-labels.zip')
-
-print('TRAIN')
-onset_detector.predict_print_metrics(wav_file_paths_train, truth_dataset_format_tuples_train)
-print('TEST')
-onset_detector.predict_print_metrics(wav_file_paths_test, truth_dataset_format_tuples_test)
