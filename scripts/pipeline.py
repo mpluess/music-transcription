@@ -43,7 +43,7 @@ n_frets = 24
 onset_detector = CnnOnsetDetector.from_zip('../models/onset_detection/20170601-3-channels_ds1-4_80-perc_adjusted-labels_with_config.zip')
 onset_times_seconds = onset_detector.predict_onsets(path_to_wav_file)
 
-pitch_detector = CnnPitchDetector.from_zip('../models/pitch_detection/20170525_1345.zip')
+pitch_detector = CnnPitchDetector.from_zip('../models/pitch_detection/20170621_1618_audio_effects_mono_plus_ds1-3_80-perc.zip')
 list_of_pitch_sets = pitch_detector.predict_pitches(path_to_wav_file, onset_times_seconds)
 
 string_fret_detector = SimpleStringFretDetection(tuning, n_frets)
@@ -55,7 +55,7 @@ for onset, pitch, string, fret in zip(onset_times_seconds, list_of_pitch_sets, l
     print('onset={}, pitch={}, string={}, fret={}'.format(onset, sorted(pitch, reverse=True), string, fret))
 
 beat_converter = SimpleBeatConverter()
-# beat_converter.set_tempo(49)
+beat_converter.set_tempo(49)
 beats = beat_converter.transform(path_to_wav_file, onset_times_seconds, list_of_pitch_sets, list_of_string_lists, list_of_fret_lists)
 
 measures = []

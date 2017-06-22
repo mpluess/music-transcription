@@ -75,24 +75,24 @@ class CnnFeatureExtractor(BaseEstimator, TransformerMixin):
         if X_channels is None:
             return None, None, None
 
-        for X in X_channels:
-            print(X.shape)
-            print(X.mean())
-            print(X.std())
+        # for X in X_channels:
+        #     print(X.shape)
+        #     print(X.mean())
+        #     print(X.std())
 
-        print('Standardizing for each channel and band')
+        # print('Standardizing for each channel and band')
         for X, standard_scalers in zip(X_channels, self.standard_scalers_per_channel):
             for j, ss in enumerate(standard_scalers):
                 X[:, j:j + 1] = ss.transform(X[:, j:j + 1])
-        for X in X_channels:
-            print(X.mean())
-            print(X.std())
+        # for X in X_channels:
+        #     print(X.mean())
+        #     print(X.std())
 
         for i in range(len(X_channels)):
             X_channels[i] = self._get_X_with_context_frames(X_channels[i])
-            print(X_channels[i].shape)
+            # print(X_channels[i].shape)
 
-        print('Reshaping data')
+        # print('Reshaping data')
         img_rows, img_cols = (X_channels[0].shape[1], X_channels[0].shape[2])
         for i in range(len(X_channels)):
             # Theano is 3 times faster with channels_first vs. channels_last on MNIST, so this setting matters.
@@ -101,20 +101,20 @@ class CnnFeatureExtractor(BaseEstimator, TransformerMixin):
                 X_channels[i] = X_channels[i].reshape(X_channels[i].shape[0], 1, img_rows, img_cols)
             else:
                 X_channels[i] = X_channels[i].reshape(X_channels[i].shape[0], img_rows, img_cols, 1)
-            print(X_channels[i].shape)
+            # print(X_channels[i].shape)
 
-        print('Concatenating channels')
+        # print('Concatenating channels')
         # TODO concatenate and delete one by one to use less memory at once
         # TODO axis should change depending on image_data_format (1 vs. 3)
         X = np.concatenate(X_channels, axis=1)
-        print(X.shape)
+        # print(X.shape)
 
         return X, y, y_actual_onset_only
 
     def _read_and_extract(self, wav_file_paths):
         """Read wave files, extract spectrogram features and return a feature matrix with shape (n_frames_all_files, n_bands) per channel."""
 
-        print('Reading wave files')
+        # print('Reading wave files')
         X_parts = []
         for path_to_wav in wav_file_paths:
             X_part, file_length_seconds = read_X(path_to_wav, self.frame_rate_hz, self.sample_rate, self.subsampling_step)
@@ -124,7 +124,7 @@ class CnnFeatureExtractor(BaseEstimator, TransformerMixin):
         if len(X_parts) == 0:
             return None
 
-        print('Creating spectrograms')
+        # print('Creating spectrograms')
         X_channels, n_frames_after_cutoff_per_file = self._extract_spectrogram_features(X_parts)
 
         return X_channels
@@ -418,7 +418,6 @@ class CnnOnsetDetector(AbstractOnsetDetector):
 
         return model
 
-    # TODO check scores after doing this
     def predict_onsets(self, path_to_wav_file):
         classes_filtered = self._predict_classes_filtered(path_to_wav_file)
         if classes_filtered is None:
@@ -451,8 +450,8 @@ class CnnOnsetDetector(AbstractOnsetDetector):
         if X is None:
             return None
 
-        classes = self.model.predict_classes(X, batch_size=self.BATCH_SIZE).ravel()
-        probas = self.model.predict_proba(X, batch_size=self.BATCH_SIZE).ravel()
+        classes = self.model.predict_classes(X, batch_size=self.BATCH_SIZE, verbose=0).ravel()
+        probas = self.model.predict_proba(X, batch_size=self.BATCH_SIZE, verbose=0).ravel()
 
         return self._filter_classes(classes, probas)
 
@@ -461,6 +460,9 @@ class CnnOnsetDetector(AbstractOnsetDetector):
         """Filter duplicate onsets caused by the labeling of neighbors during training"""
 
         onset_indices_unfiltered = classes.nonzero()[0]
+        if len(onset_indices_unfiltered) == 0:
+            return onset_indices_unfiltered
+
         onset_indices_filtered = []
         last_index = -2
         onset_group = []

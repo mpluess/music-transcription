@@ -15,6 +15,7 @@ DATASET_CORRECTIONS = {
     3: 0.0,
     4: 0.0,
     5: 0.0,
+    6: 0.0,
 }
 
 
@@ -28,7 +29,7 @@ def get_wav_and_truth_files(active_datasets):
     wav_file_paths: List of wave file paths
     truth_dataset_format_tuples: List of tuples (path_to_truth_file, dataset, format)
 
-    dataset labels: one of 1, 2, 3, 4
+    dataset labels: one of 1, 2, 3, 4, 5, 6
     truth formats: one of 'csv', 'xml'
     """
 
@@ -59,6 +60,14 @@ def get_wav_and_truth_files(active_datasets):
             os.path.join(DATA_DIR, r'recordings\annotation'),
             5,
         ))
+    if 6 in active_datasets:
+        path_to_ds = os.path.join(DATA_DIR, 'IDMT-SMT-AUDIO-EFFECTS', 'Gitarre monophon')
+        for effect_desc in listdir(os.path.join(path_to_ds, 'Samples')):
+            dir_tuples.append((
+                os.path.join(path_to_ds, 'Samples', effect_desc),
+                os.path.join(path_to_ds, 'annotation', effect_desc),
+                6,
+            ))
 
     wav_file_paths = []
     truth_dataset_format_tuples = []
@@ -292,6 +301,9 @@ def group_onsets(onset_times, onset_group_threshold_seconds, epsilon=1e-6):
 
     Group onsets in a way that onsets closer than onset_group_threshold_seconds belong to the same group.
     """
+
+    if len(onset_times) == 0:
+        return onset_times
 
     onset_times_grouped = []
     last_onset = None

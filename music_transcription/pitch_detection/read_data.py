@@ -12,6 +12,7 @@ DATASET_CORRECTIONS = {
     3: 0.0,
     4: 0.0,
     5: 0.0,
+    6: 0.0,
 }
 
 
@@ -25,16 +26,21 @@ def read_data_y(wav_file_paths, truth_dataset_format_tuples,
     list_of_samples = []
     list_of_onset_times = []
     list_of_pitches = []
-    for path_to_wav, (path_to_xml, dataset, truth_format) in zip(wav_file_paths, truth_dataset_format_tuples):
+    wav_file_paths_valid = []
+    truth_dataset_format_tuples_valid = []
+    for path_to_wav, truth_dataset_format_tuple in zip(wav_file_paths, truth_dataset_format_tuples):
+        path_to_xml, dataset, truth_format = truth_dataset_format_tuple
         if truth_format != 'xml':
             raise ValueError('Unsupported format {}'.format(truth_format))
         samples = read_samples(path_to_wav, frame_rate_hz, sample_rate, subsampling_step)
         onset_times_grouped, pitches_grouped = _read_onset_times_pitches(path_to_xml, min_pitch, max_pitch, dataset,
-                                                         onset_group_threshold_seconds)
+                                                                         onset_group_threshold_seconds)
         if samples is not None and onset_times_grouped is not None and pitches_grouped is not None:
             list_of_samples.append(samples)
             list_of_onset_times.append(onset_times_grouped)
             list_of_pitches.append(pitches_grouped)
+            wav_file_paths_valid.append(path_to_wav)
+            truth_dataset_format_tuples_valid.append(truth_dataset_format_tuple)
 
     label_binarizer = MultiLabelBinarizer(classes=range(min_pitch, max_pitch + 1))
     label_binarizer.fit(None)
@@ -43,7 +49,7 @@ def read_data_y(wav_file_paths, truth_dataset_format_tuples,
     assert len(pitch_groups_flat) == sum([len(onset_times) for onset_times in list_of_onset_times])
     y = label_binarizer.transform(pitch_groups_flat)
 
-    return (list_of_samples, list_of_onset_times), y
+    return (list_of_samples, list_of_onset_times), y, wav_file_paths_valid, truth_dataset_format_tuples_valid
 
 
 def read_samples(path_to_wav, frame_rate_hz, expected_sample_rate, subsampling_step):

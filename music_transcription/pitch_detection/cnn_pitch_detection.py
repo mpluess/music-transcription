@@ -49,24 +49,24 @@ class CnnFeatureExtractor(BaseEstimator, TransformerMixin):
         list_of_samples, list_of_onset_times = data
 
         X_channels, n_frames_after_cutoff_per_file = self._extract_spectrogram_features(list_of_samples)
-        for X in X_channels:
-            print(X.shape)
-            print(X.mean())
-            print(X.std())
+        # for X in X_channels:
+        #     print(X.shape)
+        #     print(X.mean())
+        #     print(X.std())
 
-        print('Standardizing for each channel and band')
+        # print('Standardizing for each channel and band')
         for X, standard_scalers in zip(X_channels, self.standard_scalers_per_channel):
             for j, ss in enumerate(standard_scalers):
                 X[:, j:j + 1] = ss.transform(X[:, j:j + 1])
-        for X in X_channels:
-            print(X.mean())
-            print(X.std())
+        # for X in X_channels:
+        #     print(X.mean())
+        #     print(X.std())
 
         for i in range(len(X_channels)):
             X_channels[i] = self._get_X_after_onset_with_context(X_channels[i], list_of_onset_times, n_frames_after_cutoff_per_file)
-            print(X_channels[i].shape)
+            # print(X_channels[i].shape)
 
-        print('Reshaping data')
+        # print('Reshaping data')
         img_rows, img_cols = (X_channels[0].shape[1], X_channels[0].shape[2])
         for i in range(len(X_channels)):
             # Theano is 3 times faster with channels_first vs. channels_last on MNIST, so this setting matters.
@@ -75,13 +75,13 @@ class CnnFeatureExtractor(BaseEstimator, TransformerMixin):
                 X_channels[i] = X_channels[i].reshape(X_channels[i].shape[0], 1, img_rows, img_cols)
             else:
                 X_channels[i] = X_channels[i].reshape(X_channels[i].shape[0], img_rows, img_cols, 1)
-            print(X_channels[i].shape)
+            # print(X_channels[i].shape)
 
-        print('Concatenating channels')
+        # print('Concatenating channels')
         # TODO concatenate and delete one by one to use less memory at once
         # TODO axis should change depending on image_data_format (1 vs. 3)
         X = np.concatenate(X_channels, axis=1)
-        print(X.shape)
+        # print(X.shape)
 
         return X
 
@@ -146,6 +146,7 @@ class CnnFeatureExtractor(BaseEstimator, TransformerMixin):
             for onset_time in onset_times_grouped:
                 index = int(onset_time * self.frame_rate_hz)
                 assert index < n_frames
+
                 if n_frames - index - 1 < c:
                     warn('Onset is too close to end of file ({} < {}), '
                          'operation will add context from different file!'.format(n_frames - index - 1, c))
@@ -179,7 +180,7 @@ class CnnPitchDetector(AbstractPitchDetector):
                  config=None, feature_extractor=None, model=None,
 
                  # config params
-                 tuning=(64, 59, 55, 50, 45, 40), n_frets=24, proba_threshold=0.3,
+                 tuning=(64, 59, 55, 50, 45, 40), n_frets=24, proba_threshold=0.5,
 
                  # feature extractor params
                  frame_rate_hz=100, sample_rate=44100, subsampling_step=1, image_data_format='channels_first',
@@ -279,7 +280,7 @@ class CnnPitchDetector(AbstractPitchDetector):
 
     def fit(self, wav_file_paths_train, truth_dataset_format_tuples_train,
             wav_file_paths_val=None, truth_dataset_format_tuples_val=None):
-        data_train, y_train = read_data_y(wav_file_paths_train, truth_dataset_format_tuples_train,
+        data_train, y_train, _, _ = read_data_y(wav_file_paths_train, truth_dataset_format_tuples_train,
                                           self.feature_extractor.frame_rate_hz,
                                           self.feature_extractor.sample_rate,
                                           self.feature_extractor.subsampling_step,
@@ -289,7 +290,7 @@ class CnnPitchDetector(AbstractPitchDetector):
         input_shape = (X_train.shape[1], X_train.shape[2], X_train.shape[3])
 
         if wav_file_paths_val is not None and truth_dataset_format_tuples_val is not None:
-            data_val, y_val = read_data_y(wav_file_paths_val, truth_dataset_format_tuples_val,
+            data_val, y_val, _, _ = read_data_y(wav_file_paths_val, truth_dataset_format_tuples_val,
                                           self.feature_extractor.frame_rate_hz,
                                           self.feature_extractor.sample_rate,
                                           self.feature_extractor.subsampling_step,
@@ -297,7 +298,6 @@ class CnnPitchDetector(AbstractPitchDetector):
                                           self.config['max_pitch'])
             X_val = self.feature_extractor.transform(data_val)
             validation_data = (X_val, y_val)
-            print(y_val)
         else:
             validation_data = None
 
