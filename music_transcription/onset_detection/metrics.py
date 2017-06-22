@@ -1,6 +1,38 @@
 import numpy as np
 
 
+class Metrics:
+    def __init__(self, tp, fp, fn):
+        self.tp = tp
+        self.fp = fp
+        self.fn = fn
+
+    def add(self, metrics):
+        self.tp += metrics.tp
+        self.fp += metrics.fp
+        self.fn += metrics.fn
+
+    def precision(self):
+        if self.tp + self.fp == 0:
+            return 0.0
+        else:
+            return self.tp / (self.tp + self.fp)
+
+    def recall(self):
+        if self.tp + self.fn == 0:
+            return 0.0
+        else:
+            return self.tp / (self.tp + self.fn)
+
+    def f1(self):
+        precision = self.precision()
+        recall = self.recall()
+        if precision + recall == 0.0:
+            return 0.0
+        else:
+            return 2 * precision * recall / (precision + recall)
+
+
 def onset_metric(y, y_actual_onset_only, y_predicted, n_tolerance_frames_plus_minus):
     """Assumes y is grouped by wav file, sorted by time asc.
 
@@ -44,3 +76,26 @@ def onset_metric(y, y_actual_onset_only, y_predicted, n_tolerance_frames_plus_mi
     result_string += 'precision=' + str(precision) + ', recall=' + str(recall) + ', F1=' + str(f1) + '\n'
 
     return result_string
+
+
+def onset_metric_times(onset_times, onset_times_predicted, n_tolerance_seconds_plus_minus, epsilon=1e-6):
+    tp = 0
+    fn = 0
+    onset_times_predicted_no_fp = set()
+    for onset_time in onset_times:
+        is_tp = False
+        for onset_time_predicted in onset_times_predicted:
+            if abs(onset_time - onset_time_predicted) < n_tolerance_seconds_plus_minus + epsilon:
+                # No break, we want all matching onsets to not be counted as FPs
+                is_tp = True
+                onset_times_predicted_no_fp.add(onset_time_predicted)
+        if is_tp:
+            tp += 1
+        else:
+            fn += 1
+
+    onset_times_predicted_set = set(onset_times_predicted)
+    assert len(onset_times_predicted) == len(onset_times_predicted_set)
+    fp = len(onset_times_predicted_set - onset_times_predicted_no_fp)
+
+    return Metrics(tp, fp, fn)

@@ -8,99 +8,15 @@ from warnings import warn
 
 DATA_DIR = r'..\data'
 
-
-def read_data(active_datasets, frame_rate_hz, expected_sample_rate, subsampling_step):
-    """Read data, returning a tuple (X_parts, y_parts, y_actual_onset_only_parts, ds_labels)
-
-    Input:
-    active_datasets: set of datasets to be loaded
-    frame_rate_hz: number of frames per second
-    expected_sample_rate: (unit: Hz) files with a different sample rate will be skipped
-    subsampling_step: Do a subsampling on the samples, only keeping every nth frame. subsampling_step=1 means no subsampling.
-
-    Output:
-    X_parts: List of numpy arrays of samples (one per file)
-    y_parts: List of numpy arrays of labels (one per file)
-    y_actual_onset_only_parts: List of numpy arrays of labels (no neighbors, one per file)
-    ds_labels: List of dataset labels
-    """
-
-    dir_tuples = []
-    if 1 in active_datasets:
-        path_to_ds_1 = os.path.join(DATA_DIR, r'IDMT-SMT-GUITAR_V2\dataset1')
-        for guitar_desc in listdir(path_to_ds_1):
-            dir_tuples.append((
-                os.path.join(path_to_ds_1, guitar_desc, 'audio'),
-                os.path.join(path_to_ds_1, guitar_desc, 'annotation'),
-                1,
-            ))
-
-    if 2 in active_datasets:
-        dir_tuples.append((
-            os.path.join(DATA_DIR, r'IDMT-SMT-GUITAR_V2\dataset2\audio'),
-            os.path.join(DATA_DIR, r'IDMT-SMT-GUITAR_V2\dataset2\annotation'),
-            2,
-        ))
-    if 3 in active_datasets:
-        dir_tuples.append((
-            os.path.join(DATA_DIR, r'IDMT-SMT-GUITAR_V2\dataset3\audio'),
-            os.path.join(DATA_DIR, r'IDMT-SMT-GUITAR_V2\dataset3\annotation'),
-            3,
-        ))
-
-    file_tuples = []
-    for audio_dir, annotation_dir, ds in dir_tuples:
-        for wav_file in listdir(audio_dir):
-            path_to_wav = os.path.join(audio_dir, wav_file)
-            if wav_file.endswith('.wav'):
-                path_to_xml = os.path.join(annotation_dir, wav_file.replace('.wav', '.xml'))
-                if isfile(path_to_xml):
-                    file_tuples.append((path_to_wav, path_to_xml, ds, 'xml'))
-                else:
-                    warn('Skipping ' + wav_file + ', no truth found.')
-            else:
-                warn('Skipping ' + path_to_wav + ', not a .wav file.')
-
-    if 4 in active_datasets:
-        for path_to_ds in [
-            os.path.join(DATA_DIR, r'IDMT-SMT-GUITAR_V2\dataset4\Career SG'),
-            os.path.join(DATA_DIR, r'IDMT-SMT-GUITAR_V2\dataset4\Ibanez 2820')
-        ]:
-            for tempo in listdir(path_to_ds):
-                path_to_tempo = os.path.join(path_to_ds, tempo)
-                for genre in listdir(path_to_tempo):
-                    path_to_genre = os.path.join(path_to_tempo, genre)
-                    path_to_audio = os.path.join(path_to_genre, 'audio')
-                    for wav_file in listdir(path_to_audio):
-                        path_to_wav = os.path.join(path_to_audio, wav_file)
-                        if wav_file.endswith('.wav'):
-                            path_to_onsets = os.path.join(path_to_genre, 'annotation', 'onsets')
-                            if isdir(path_to_onsets):
-                                path_to_csv = os.path.join(path_to_onsets, wav_file.replace('.wav', '.csv'))
-                                if isfile(path_to_csv):
-                                    file_tuples.append((path_to_wav, path_to_csv, 4, 'csv'))
-                                else:
-                                    # TODO fallback to other formats
-                                    warn('Skipping ' + path_to_wav + ', no truth csv found.')
-                            else:
-                                warn('Skipping ' + path_to_wav + ', no onset folder.')
-                        else:
-                            warn('Skipping ' + path_to_wav + ', not a .wav file.')
-
-    X_parts = []
-    y_parts = []
-    y_actual_onset_only_parts = []
-    ds_labels = []
-    for path_to_wav, path_to_truth, dataset, truth_format in file_tuples:
-        X_part, y_part, y_actual_onset_only_part = read_X_y(path_to_wav, frame_rate_hz, expected_sample_rate,
-                                                            subsampling_step, path_to_truth, truth_format, dataset)
-        if X_part is not None and y_part is not None and y_actual_onset_only_part is not None:
-            X_parts.append(X_part)
-            y_parts.append(y_part)
-            y_actual_onset_only_parts.append(y_actual_onset_only_part)
-            ds_labels.append(dataset)
-
-    return X_parts, y_parts, y_actual_onset_only_parts, ds_labels
+# Correction of onset times in seconds (see onset_detection.read_data._set_onset_label_adjusted_with_neighbors)
+DATASET_CORRECTIONS = {
+    1: 0.0,
+    2: 0.03,
+    3: 0.0,
+    4: 0.0,
+    5: 0.0,
+    6: 0.0,
+}
 
 
 def get_wav_and_truth_files(active_datasets):
@@ -113,7 +29,7 @@ def get_wav_and_truth_files(active_datasets):
     wav_file_paths: List of wave file paths
     truth_dataset_format_tuples: List of tuples (path_to_truth_file, dataset, format)
 
-    dataset labels: one of 1, 2, 3, 4
+    dataset labels: one of 1, 2, 3, 4, 5, 6
     truth formats: one of 'csv', 'xml'
     """
 
@@ -126,7 +42,6 @@ def get_wav_and_truth_files(active_datasets):
                 os.path.join(path_to_ds_1, guitar_desc, 'annotation'),
                 1,
             ))
-
     if 2 in active_datasets:
         dir_tuples.append((
             os.path.join(DATA_DIR, r'IDMT-SMT-GUITAR_V2\dataset2\audio'),
@@ -139,6 +54,20 @@ def get_wav_and_truth_files(active_datasets):
             os.path.join(DATA_DIR, r'IDMT-SMT-GUITAR_V2\dataset3\annotation'),
             3,
         ))
+    if 5 in active_datasets:
+        dir_tuples.append((
+            os.path.join(DATA_DIR, r'recordings\audio'),
+            os.path.join(DATA_DIR, r'recordings\annotation'),
+            5,
+        ))
+    if 6 in active_datasets:
+        path_to_ds = os.path.join(DATA_DIR, 'IDMT-SMT-AUDIO-EFFECTS', 'Gitarre monophon')
+        for effect_desc in listdir(os.path.join(path_to_ds, 'Samples')):
+            dir_tuples.append((
+                os.path.join(path_to_ds, 'Samples', effect_desc),
+                os.path.join(path_to_ds, 'annotation', effect_desc),
+                6,
+            ))
 
     wav_file_paths = []
     truth_dataset_format_tuples = []
@@ -203,7 +132,10 @@ def read_X_y(path_to_wav, frame_rate_hz, expected_sample_rate, subsampling_step,
 
 
 def read_X(path_to_wav, frame_rate_hz, expected_sample_rate, subsampling_step):
-    """Read samples of a wave file. Returns a tuple (sample_np_array, length_seconds)."""
+    """Read samples of a wave file. Returns a tuple (sample_np_array, length_seconds).
+
+    sample_np_array.shape = (n_frames, ceil(sample_rate / frame_rate_hz / subsampling_step))
+    """
 
     # scipy.io.wavfile is not able to read 24-bit data, hence the need to use this alternative library
     samples, sample_rate = soundfile.read(path_to_wav)
@@ -315,3 +247,74 @@ def _set_onset_label_adjusted_with_neighbors(y, y_actual_onset_only, index, data
     end = min(len(y), index + 2)
     y[start:end] = 1
     y_actual_onset_only[index] = 1
+
+
+def read_onset_times(path_to_truth, dataset, truth_format, onset_group_threshold_seconds):
+    if truth_format == 'xml':
+        onset_times = _read_onset_times_xml(path_to_truth, dataset)
+    elif truth_format == 'csv':
+        onset_times = _read_onset_times_csv(path_to_truth, dataset)
+    else:
+        raise ValueError('Unknown truth format')
+
+    onset_times = sorted(onset_times)
+    onset_times_grouped = group_onsets(onset_times, onset_group_threshold_seconds)
+
+    return onset_times_grouped
+
+
+def _read_onset_times_xml(path_to_xml, dataset):
+    tree = ElementTree.parse(path_to_xml)
+    root = tree.getroot()
+    onset_times = []
+    for root_child in root:
+        if root_child.tag == 'transcription':
+            for event in root_child:
+                if event.tag != 'event':
+                    raise ValueError('Unexpected XML element, expected event, got ' + event.tag)
+                onset_time = None
+                for event_child in event:
+                    if event_child.tag == 'onsetSec':
+                        onset_time = float(event_child.text) + DATASET_CORRECTIONS[dataset]
+                if onset_time is not None:
+                    onset_times.append(onset_time)
+                else:
+                    raise ValueError('File {} does not contain onset information.'.format(path_to_xml))
+            break
+
+    return onset_times
+
+
+def _read_onset_times_csv(path_to_csv, dataset):
+    onset_times = []
+    with open(path_to_csv) as f:
+        for line in f:
+            line_split = line.rstrip().split(',')
+            onset_time = float(line_split[0])
+            onset_times.append(onset_time)
+
+    return onset_times
+
+
+def group_onsets(onset_times, onset_group_threshold_seconds, epsilon=1e-6):
+    """Assumes onset times are sorted.
+
+    Group onsets in a way that onsets closer than onset_group_threshold_seconds belong to the same group.
+    """
+
+    if len(onset_times) == 0:
+        return onset_times
+
+    onset_times_grouped = []
+    last_onset = None
+    onset_group_start = None
+    for onset_time in onset_times:
+        if last_onset is not None and onset_time - last_onset > onset_group_threshold_seconds + epsilon:
+            onset_times_grouped.append(onset_group_start)
+            onset_group_start = None
+        last_onset = onset_time
+        if onset_group_start is None:
+            onset_group_start = onset_time
+    onset_times_grouped.append(onset_group_start)
+
+    return onset_times_grouped
