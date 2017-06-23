@@ -86,7 +86,7 @@ class CnnFeatureExtractor(BaseEstimator, TransformerMixin):
         return X
 
     def _extract_spectrogram_features(self, list_of_samples):
-        print('Creating spectrograms')
+        # print('Creating spectrograms')
         n_frames_after_cutoff_per_file = [None] * len(list_of_samples)
         X_channels = []
         # Create 3 channels with different window length.
@@ -281,10 +281,10 @@ class CnnPitchDetector(AbstractPitchDetector):
     def fit(self, wav_file_paths_train, truth_dataset_format_tuples_train,
             wav_file_paths_val=None, truth_dataset_format_tuples_val=None):
         data_train, y_train, _, _ = read_data_y(wav_file_paths_train, truth_dataset_format_tuples_train,
-                                          self.feature_extractor.frame_rate_hz,
-                                          self.feature_extractor.sample_rate,
-                                          self.feature_extractor.subsampling_step,
-                                          self.config['min_pitch'], self.config['max_pitch'])
+                                                self.feature_extractor.frame_rate_hz,
+                                                self.feature_extractor.sample_rate,
+                                                self.feature_extractor.subsampling_step,
+                                                self.config['min_pitch'], self.config['max_pitch'])
         self.feature_extractor.fit(data_train)
         X_train = self.feature_extractor.transform(data_train)
         input_shape = (X_train.shape[1], X_train.shape[2], X_train.shape[3])
@@ -342,6 +342,8 @@ class CnnPitchDetector(AbstractPitchDetector):
                                self.feature_extractor.frame_rate_hz,
                                self.feature_extractor.sample_rate,
                                self.feature_extractor.subsampling_step)
+        if samples is None:
+            return None
         X = self.feature_extractor.transform(([samples], [onset_times_seconds]))
 
         proba_matrix = self.model.predict(X)
