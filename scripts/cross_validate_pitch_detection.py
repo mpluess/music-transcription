@@ -34,7 +34,9 @@ def predict(pitch_detector, wav_file_paths, truth_dataset_format_tuples,
                                 target_names=[str(pitch) for pitch in range(min_pitch, max_pitch + 1)]))
 
 DATASETS_CV = {1, 2}
-DATASETS_ADDITIONAL = {3, 6}
+DATASETS_ADDITIONAL = {3}
+# DATASETS_ADDITIONAL = {3, 6}
+# DATASETS_ADDITIONAL = {3, 6, 7}
 
 frame_rate_hz = 100
 sample_rate = 44100
@@ -47,7 +49,7 @@ wav_file_paths_additional, truth_dataset_format_tuples_additional = get_wav_and_
 
 k_fold = KFold(n_splits=5, shuffle=True, random_state=42)
 for k, (train_indices, test_indices) in enumerate(k_fold.split(wav_file_paths_cv)):
-    if k < 2:
+    if k > 0:
         print('Skipping split {}'.format(k))
         continue
 
@@ -61,12 +63,12 @@ for k, (train_indices, test_indices) in enumerate(k_fold.split(wav_file_paths_cv
     pitch_detector.fit(wav_file_paths_train, truth_dataset_format_tuples_train,
                        wav_file_paths_test, truth_dataset_format_tuples_test)
 
-    print('TRAIN')
-    predict(pitch_detector, wav_file_paths_train, truth_dataset_format_tuples_train,
-            frame_rate_hz, sample_rate, subsampling_step, min_pitch, max_pitch)
+    # print('TRAIN')
+    # predict(pitch_detector, wav_file_paths_train, truth_dataset_format_tuples_train,
+    #         frame_rate_hz, sample_rate, subsampling_step, min_pitch, max_pitch)
 
     print('TEST')
     predict(pitch_detector, wav_file_paths_test, truth_dataset_format_tuples_test,
             frame_rate_hz, sample_rate, subsampling_step, min_pitch, max_pitch)
 
-    pitch_detector.save('../models/pitch_detection/20170622_ds12-cv_ds36-additional_fold-' + str(k) + '.zip')
+    pitch_detector.save('../models/pitch_detection/20170625_ds12-cv_ds3-additional_fold-' + str(k) + '.zip')

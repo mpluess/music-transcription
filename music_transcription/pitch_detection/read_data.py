@@ -6,14 +6,7 @@ from xml.etree import ElementTree
 import music_transcription.onset_detection.read_data
 
 # Correction of onset times in seconds (see onset_detection.read_data._set_onset_label_adjusted_with_neighbors)
-DATASET_CORRECTIONS = {
-    1: 0.0,
-    2: 0.03,
-    3: 0.0,
-    4: 0.0,
-    5: 0.0,
-    6: 0.0,
-}
+DATASET_CORRECTIONS = music_transcription.onset_detection.read_data.DATASET_CORRECTIONS
 
 
 def get_wav_and_truth_files(active_datasets):

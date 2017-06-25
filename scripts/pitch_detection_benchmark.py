@@ -4,9 +4,11 @@ from sklearn.model_selection import train_test_split
 
 from music_transcription.pitch_detection.read_data import get_wav_and_truth_files, read_data_y
 
-# # active_datasets = {1, 2, 3}
+# active_datasets = {1, 2, 3}
+# # active_datasets = {1, 2}
 # # active_datasets = {6}
-# active_datasets = {1, 2, 3, 6}
+# # active_datasets = {1, 2, 3, 6}
+# # active_datasets = {7}
 # wav_file_paths, truth_dataset_format_tuples = get_wav_and_truth_files(active_datasets)
 # (
 #     wav_file_paths_train, wav_file_paths_test,
@@ -35,8 +37,7 @@ assert len(wav_file_paths_test) == len(data_test[1])
 
 # Load your pitch detector here
 from music_transcription.pitch_detection.cnn_pitch_detection import CnnPitchDetector
-pitch_detector = CnnPitchDetector.from_zip('../models/pitch_detection/20170621_1618_audio_effects_mono_plus_ds1-3_80-perc.zip')
-pitch_detector.config['proba_threshold'] = 0.5
+pitch_detector = CnnPitchDetector.from_zip('../models/pitch_detection/20170625_1658_audio_effects_poly_80-perc.zip')
 assert frame_rate_hz == pitch_detector.feature_extractor.frame_rate_hz
 assert sample_rate == pitch_detector.feature_extractor.sample_rate
 assert subsampling_step == pitch_detector.feature_extractor.subsampling_step
@@ -46,20 +47,14 @@ assert max_pitch == pitch_detector.config['max_pitch']
 # from music_transcription.pitch_detection.aubio_pitch_detection import AubioPitchDetector
 # pitch_detector = AubioPitchDetector()
 
-for proba_threshold in [
-    0.5
-    # 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9
-]:
-    print(proba_threshold)
-    pitch_detector.config['proba_threshold'] = proba_threshold
-    y_test_predicted_parts = []
-    for path_to_wav, onset_times_seconds in zip(wav_file_paths_test, data_test[1]):
-        y_test_predicted_parts.append(pitch_detector.predict(path_to_wav, onset_times_seconds))
-    y_test_predicted = np.concatenate(y_test_predicted_parts)
+y_test_predicted_parts = []
+for path_to_wav, onset_times_seconds in zip(wav_file_paths_test, data_test[1]):
+    y_test_predicted_parts.append(pitch_detector.predict(path_to_wav, onset_times_seconds))
+y_test_predicted = np.concatenate(y_test_predicted_parts)
 
-    print('Accuracy: {}'.format(sklearn.metrics.accuracy_score(y_test, y_test_predicted)))
-    print(sklearn.metrics.classification_report(y_test, y_test_predicted,
-                                                target_names=[str(pitch) for pitch in range(min_pitch, max_pitch + 1)]))
+print('Accuracy: {}'.format(sklearn.metrics.accuracy_score(y_test, y_test_predicted)))
+print(sklearn.metrics.classification_report(y_test, y_test_predicted,
+                                            target_names=[str(pitch) for pitch in range(min_pitch, max_pitch + 1)]))
 
 # for y_test_row, y_test_predicted_row in zip(y_test, y_test_predicted):
 #     for pitch, label, label_predicted in zip(range(40, 89), y_test_row, y_test_predicted_row):

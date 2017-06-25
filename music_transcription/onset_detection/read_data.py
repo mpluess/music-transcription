@@ -10,12 +10,20 @@ DATA_DIR = r'..\data'
 
 # Correction of onset times in seconds (see onset_detection.read_data._set_onset_label_adjusted_with_neighbors)
 DATASET_CORRECTIONS = {
+    # IDMT-SMT-GUITAR_V2 dataset1
     1: 0.0,
+    # IDMT-SMT-GUITAR_V2 dataset2
     2: 0.03,
+    # IDMT-SMT-GUITAR_V2 dataset3
     3: 0.0,
+    # IDMT-SMT-GUITAR_V2 dataset4
     4: 0.0,
+    # recordings
     5: 0.0,
+    # IDMT-SMT-AUDIO-EFFECTS monophon
     6: 0.0,
+    # IDMT-SMT-AUDIO-EFFECTS polyphon
+    7: 0.0,
 }
 
 
@@ -29,7 +37,7 @@ def get_wav_and_truth_files(active_datasets):
     wav_file_paths: List of wave file paths
     truth_dataset_format_tuples: List of tuples (path_to_truth_file, dataset, format)
 
-    dataset labels: one of 1, 2, 3, 4, 5, 6
+    dataset labels: one of 1, 2, 3, 4, 5, 6, 7
     truth formats: one of 'csv', 'xml'
     """
 
@@ -67,6 +75,14 @@ def get_wav_and_truth_files(active_datasets):
                 os.path.join(path_to_ds, 'Samples', effect_desc),
                 os.path.join(path_to_ds, 'annotation', effect_desc),
                 6,
+            ))
+    if 7 in active_datasets:
+        path_to_ds = os.path.join(DATA_DIR, 'IDMT-SMT-AUDIO-EFFECTS', 'Gitarre polyphon')
+        for effect_desc in listdir(os.path.join(path_to_ds, 'Samples')):
+            dir_tuples.append((
+                os.path.join(path_to_ds, 'Samples', effect_desc),
+                os.path.join(path_to_ds, 'annotation', effect_desc),
+                7,
             ))
 
     wav_file_paths = []

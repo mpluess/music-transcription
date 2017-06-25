@@ -26,11 +26,14 @@ class CnnFeatureExtractor(BaseEstimator, TransformerMixin):
 
         self.standard_scalers_per_channel = None
 
-    def fit(self, data, y=None):
-        list_of_samples, _ = data
+    def fit(self, data, y=None, save_data=False):
+        list_of_samples, list_of_onset_times = data
 
-        # TODO fit_transform so spectrograms are only done once
-        X_channels, _ = self._extract_spectrogram_features(list_of_samples)
+        X_channels, n_frames_after_cutoff_per_file = self._extract_spectrogram_features(list_of_samples)
+        if save_data:
+            self._X_channels = X_channels
+            self._n_frames_after_cutoff_per_file = n_frames_after_cutoff_per_file
+            self._list_of_onset_times = list_of_onset_times
 
         # TODO standardize only for regions with onset?
         print('Fitting standard scalers for each channel and band')
@@ -45,10 +48,17 @@ class CnnFeatureExtractor(BaseEstimator, TransformerMixin):
 
         return self
 
-    def transform(self, data):
-        list_of_samples, list_of_onset_times = data
-
-        X_channels, n_frames_after_cutoff_per_file = self._extract_spectrogram_features(list_of_samples)
+    def transform(self, data, load_data=False):
+        if load_data:
+            X_channels = self._X_channels
+            n_frames_after_cutoff_per_file = self._n_frames_after_cutoff_per_file
+            list_of_onset_times = self._list_of_onset_times
+            self._X_channels = None
+            self._n_frames_after_cutoff_per_file = None
+            self._list_of_onset_times = None
+        else:
+            list_of_samples, list_of_onset_times = data
+            X_channels, n_frames_after_cutoff_per_file = self._extract_spectrogram_features(list_of_samples)
         # for X in X_channels:
         #     print(X.shape)
         #     print(X.mean())
@@ -84,6 +94,9 @@ class CnnFeatureExtractor(BaseEstimator, TransformerMixin):
         # print(X.shape)
 
         return X
+
+    def fit_transform(self, data, y=None, **fit_params):
+        return self.fit(data, save_data=True).transform(None, load_data=True)
 
     def _extract_spectrogram_features(self, list_of_samples):
         # print('Creating spectrograms')
@@ -285,8 +298,7 @@ class CnnPitchDetector(AbstractPitchDetector):
                                                 self.feature_extractor.sample_rate,
                                                 self.feature_extractor.subsampling_step,
                                                 self.config['min_pitch'], self.config['max_pitch'])
-        self.feature_extractor.fit(data_train)
-        X_train = self.feature_extractor.transform(data_train)
+        X_train = self.feature_extractor.fit_transform(data_train)
         input_shape = (X_train.shape[1], X_train.shape[2], X_train.shape[3])
 
         if wav_file_paths_val is not None and truth_dataset_format_tuples_val is not None:
@@ -304,7 +316,7 @@ class CnnPitchDetector(AbstractPitchDetector):
         self.model = self._create_model(input_shape,
                                         self.config['max_pitch'] - self.config['min_pitch'] + 1)
         self.model.fit(X_train, y_train,
-                       epochs=500,
+                       epochs=1000,
                        batch_size=self.BATCH_SIZE,
                        callbacks=[EarlyStopping(monitor='loss', patience=8)], verbose=2,
                        validation_data=validation_data)
