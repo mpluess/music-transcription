@@ -28,23 +28,24 @@
 # print(a)
 # print(a > 0.5)
 
-# import pickle
-# config = {
-#     'onset_group_threshold_seconds': 0.03
-# }
-# with open('config.pickle', 'wb') as f:
-#     pickle.dump(config, f)
-
 import os
+import pickle
 from zipfile import ZipFile
 
+config = {
+    'onset_group_threshold_seconds': 0.05
+}
+config_file = r'D:\Users\Michel\Documents\FH\module\8_IP6\git\models\onset_detection\config.pickle'
+with open(config_file, 'wb') as f:
+    pickle.dump(config, f)
+
 to_zip = [
-    r'D:\Users\Michel\Documents\FH\module\8_IP6\git\models\onset_detection\config.pickle',
+    config_file,
     r'D:\Users\Michel\Documents\FH\module\8_IP6\git\models\onset_detection\feature_extractor.pickle',
     r'D:\Users\Michel\Documents\FH\module\8_IP6\git\models\onset_detection\model.json',
     r'D:\Users\Michel\Documents\FH\module\8_IP6\git\models\onset_detection\weights.hdf5',
 ]
-with ZipFile(r'D:\Users\Michel\Documents\FH\module\8_IP6\git\models\onset_detection\20170601-3-channels_ds1-4_80-perc_adjusted-labels_with_config.zip', 'w') as zip_file:
+with ZipFile(r'D:\Users\Michel\Documents\FH\module\8_IP6\git\models\onset_detection\20170627-3-channels_ds1-4_80-perc_adjusted-labels_with_config_thresh-0.05.zip', 'w') as zip_file:
     for path_to_file in to_zip:
         zip_file.write(path_to_file, arcname=os.path.basename(path_to_file))
 
