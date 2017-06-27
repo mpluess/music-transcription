@@ -261,7 +261,7 @@ class CnnOnsetDetector(AbstractOnsetDetector):
                  config=None, feature_extractor=None, model=None,
 
                  # config params
-                 onset_group_threshold_seconds=0.03,
+                 onset_group_threshold_seconds=0.05,
 
                  # feature extractor params
                  frame_rate_hz=100, sample_rate=44100, subsampling_step=1, image_data_format='channels_first',

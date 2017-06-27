@@ -15,7 +15,7 @@ def get_wav_and_truth_files(active_datasets):
 
 def read_data_y(wav_file_paths, truth_dataset_format_tuples,
                 frame_rate_hz, sample_rate, subsampling_step,
-                min_pitch, max_pitch, onset_group_threshold_seconds=0.03):
+                min_pitch, max_pitch, onset_group_threshold_seconds=0.05):
     list_of_samples = []
     list_of_onset_times = []
     list_of_pitches = []

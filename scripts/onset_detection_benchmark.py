@@ -10,7 +10,7 @@ def print_metrics(metrics):
     print('TP=' + str(metrics.tp) + ', FN=' + str(metrics.fn) + ', FP=' + str(metrics.fp))
     print('precision=' + str(metrics.precision()) + ', recall=' + str(metrics.recall()) + ', F1=' + str(metrics.f1()))
 
-onset_group_threshold_seconds = 0.03
+onset_group_threshold_seconds = 0.05
 
 # active_datasets = {1, 2, 3, 4}
 # wav_file_paths, truth_dataset_format_tuples = get_wav_and_truth_files(active_datasets)

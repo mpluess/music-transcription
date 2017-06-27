@@ -193,7 +193,7 @@ class CnnPitchDetector(AbstractPitchDetector):
                  config=None, feature_extractor=None, model=None,
 
                  # config params
-                 tuning=(64, 59, 55, 50, 45, 40), n_frets=24, proba_threshold=0.5,
+                 tuning=(64, 59, 55, 50, 45, 40), n_frets=24, proba_threshold=0.5, onset_group_threshold_seconds=0.05,
 
                  # feature extractor params
                  frame_rate_hz=100, sample_rate=44100, subsampling_step=1, image_data_format='channels_first',
@@ -201,6 +201,7 @@ class CnnPitchDetector(AbstractPitchDetector):
         if config is None:
             super().__init__(tuning, n_frets)
             self.config['proba_threshold'] = proba_threshold
+            self.config['onset_group_threshold_seconds'] = onset_group_threshold_seconds
         else:
             self.config = config
 
@@ -297,17 +298,19 @@ class CnnPitchDetector(AbstractPitchDetector):
                                                 self.feature_extractor.frame_rate_hz,
                                                 self.feature_extractor.sample_rate,
                                                 self.feature_extractor.subsampling_step,
-                                                self.config['min_pitch'], self.config['max_pitch'])
+                                                self.config['min_pitch'], self.config['max_pitch'],
+                                                onset_group_threshold_seconds=self.config['onset_group_threshold_seconds'])
         X_train = self.feature_extractor.fit_transform(data_train)
         input_shape = (X_train.shape[1], X_train.shape[2], X_train.shape[3])
 
         if wav_file_paths_val is not None and truth_dataset_format_tuples_val is not None:
             data_val, y_val, _, _ = read_data_y(wav_file_paths_val, truth_dataset_format_tuples_val,
-                                          self.feature_extractor.frame_rate_hz,
-                                          self.feature_extractor.sample_rate,
-                                          self.feature_extractor.subsampling_step,
-                                          self.config['min_pitch'],
-                                          self.config['max_pitch'])
+                                                self.feature_extractor.frame_rate_hz,
+                                                self.feature_extractor.sample_rate,
+                                                self.feature_extractor.subsampling_step,
+                                                self.config['min_pitch'],
+                                                self.config['max_pitch'],
+                                                onset_group_threshold_seconds=self.config['onset_group_threshold_seconds'])
             X_val = self.feature_extractor.transform(data_val)
             validation_data = (X_val, y_val)
         else:
