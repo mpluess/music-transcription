@@ -14,8 +14,8 @@ def get_wav_and_truth_files(active_datasets):
 
 
 def read_data_y(wav_file_paths, truth_dataset_format_tuples,
-                frame_rate_hz, sample_rate, subsampling_step,
-                min_pitch, max_pitch, onset_group_threshold_seconds=0.05):
+                sample_rate, subsampling_step,
+                min_pitch, max_pitch, onset_group_threshold_seconds=0.05, frame_rate_hz=None):
     list_of_samples = []
     list_of_onset_times = []
     list_of_pitches = []
@@ -25,7 +25,7 @@ def read_data_y(wav_file_paths, truth_dataset_format_tuples,
         path_to_xml, dataset, truth_format = truth_dataset_format_tuple
         if truth_format != 'xml':
             raise ValueError('Unsupported format {}'.format(truth_format))
-        samples = read_samples(path_to_wav, frame_rate_hz, sample_rate, subsampling_step)
+        samples = read_samples(path_to_wav, sample_rate, subsampling_step, frame_rate_hz=frame_rate_hz)
         onset_times_grouped, pitches_grouped = _read_onset_times_pitches(path_to_xml, min_pitch, max_pitch, dataset,
                                                                          onset_group_threshold_seconds)
         if samples is not None and onset_times_grouped is not None and pitches_grouped is not None:
@@ -45,7 +45,7 @@ def read_data_y(wav_file_paths, truth_dataset_format_tuples,
     return (list_of_samples, list_of_onset_times), y, wav_file_paths_valid, truth_dataset_format_tuples_valid
 
 
-def read_samples(path_to_wav, frame_rate_hz, expected_sample_rate, subsampling_step):
+def read_samples(path_to_wav, expected_sample_rate, subsampling_step, frame_rate_hz=None):
     """WARNING: Only use this function if you don't have labels for a file. Otherwise always use read_data_y, even
     if you don't need the labels at this moment. read_data_y makes sure files without proper labels are filtered out.
     When using read_samples directly, there's a chance samples and labels will be out of sync.
@@ -59,7 +59,7 @@ def read_samples(path_to_wav, frame_rate_hz, expected_sample_rate, subsampling_s
         warn('Skipping ' + path_to_wav +
              ', sample rate ' + str(sample_rate) + ' != expected sample rate ' + str(expected_sample_rate) + '.')
         return None
-    elif sample_rate % frame_rate_hz != 0:
+    elif frame_rate_hz is not None and sample_rate % frame_rate_hz != 0:
         raise ValueError('Sample rate ' + str(sample_rate) + ' % frame rate ' + str(frame_rate_hz) + ' != 0')
 
     return samples[::subsampling_step]
