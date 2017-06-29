@@ -14,7 +14,7 @@ onset_group_threshold_seconds = 0.03
 def get_all_fret_possibilities(notes, tuning=(64, 59, 55, 50, 45, 40)):
     solutions = [[-1] * len(tuning)]
     for note in sorted(notes):
-        print(solutions)
+        # print(solutions)
         new_solutions = []
         for sol in solutions:
             for i in range(len(tuning)):
@@ -79,6 +79,10 @@ for effect_desc in os.listdir(path_to_ds):
     for xml_file in os.listdir(xml_dir):
         xml_files.append(os.path.join(xml_dir, xml_file))
 
+notes_set = set()
 for xml in xml_files[-30:]:
     _, pitches = _read_onset_times_pitches(xml, 40, 88, 7, onset_group_threshold_seconds)
-    print(sorted(pitches[0]))
+    notes_set.add(tuple(sorted(pitches[0])))
+
+for n in notes_set:
+    print(n, '->', get_all_fret_possibilities(n))
