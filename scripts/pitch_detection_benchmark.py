@@ -23,7 +23,6 @@ wav_file_paths, truth_dataset_format_tuples = get_wav_and_truth_files(active_dat
 # wav_file_paths_test = [r'..\data\IDMT-SMT-GUITAR_V2\dataset3\audio\nocturneNr2.wav']
 # truth_dataset_format_tuples_test = [(r'..\data\IDMT-SMT-GUITAR_V2\dataset3\annotation\nocturneNr2.xml', 3, 'xml')]
 
-frame_rate_hz = 100
 sample_rate = 44100
 subsampling_step = 1
 min_pitch = 40
@@ -32,17 +31,24 @@ onset_group_threshold_seconds = 0.05
 
 data_test, y_test, wav_file_paths_test, truth_dataset_format_tuples_test = read_data_y(
     wav_file_paths_test, truth_dataset_format_tuples_test,
-    frame_rate_hz, sample_rate, subsampling_step, min_pitch, max_pitch,
+    sample_rate, subsampling_step, min_pitch, max_pitch,
     onset_group_threshold_seconds=onset_group_threshold_seconds
 )
 assert len(wav_file_paths_test) == len(data_test[1])
 
 # Load your pitch detector here
-from music_transcription.pitch_detection.cnn_pitch_detection import CnnPitchDetector
-pitch_detector = CnnPitchDetector.from_zip('../models/pitch_detection/20170627_1500_ds1-3_80-perc_onset-group-thresh-0.05.zip')
-assert frame_rate_hz == pitch_detector.feature_extractor.frame_rate_hz
+# from music_transcription.pitch_detection.cnn_pitch_detection import CnnPitchDetector
+# pitch_detector = CnnPitchDetector.from_zip('../models/pitch_detection/20170627_1500_ds1-3_80-perc_onset-group-thresh-0.05.zip')
+# assert sample_rate == pitch_detector.feature_extractor.sample_rate
+# assert subsampling_step == pitch_detector.feature_extractor.subsampling_step
+# assert min_pitch == pitch_detector.config['min_pitch']
+# assert max_pitch == pitch_detector.config['max_pitch']
+# assert onset_group_threshold_seconds == pitch_detector.config['onset_group_threshold_seconds']
+
+from music_transcription.pitch_detection.cnn_cqt_pitch_detection import CnnCqtPitchDetector
+pitch_detector = CnnCqtPitchDetector.from_zip('../models/pitch_detection/20170629_1443_cqt_audio_effects_poly_80-perc_onset-group-thresh-0.05.zip')
 assert sample_rate == pitch_detector.feature_extractor.sample_rate
-assert subsampling_step == pitch_detector.feature_extractor.subsampling_step
+assert subsampling_step == 1
 assert min_pitch == pitch_detector.config['min_pitch']
 assert max_pitch == pitch_detector.config['max_pitch']
 assert onset_group_threshold_seconds == pitch_detector.config['onset_group_threshold_seconds']

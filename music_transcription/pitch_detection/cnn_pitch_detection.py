@@ -186,7 +186,7 @@ class CnnPitchDetector(AbstractPitchDetector):
     LOSS = 'binary_crossentropy'
     OPTIMIZER = 'adam'
     METRICS = None
-    BATCH_SIZE = 1024
+    BATCH_SIZE = 256
 
     def __init__(self,
                  # loaded config, feature extractor and model
@@ -295,22 +295,21 @@ class CnnPitchDetector(AbstractPitchDetector):
     def fit(self, wav_file_paths_train, truth_dataset_format_tuples_train,
             wav_file_paths_val=None, truth_dataset_format_tuples_val=None):
         data_train, y_train, _, _ = read_data_y(wav_file_paths_train, truth_dataset_format_tuples_train,
-                                                self.feature_extractor.frame_rate_hz,
                                                 self.feature_extractor.sample_rate,
                                                 self.feature_extractor.subsampling_step,
                                                 self.config['min_pitch'], self.config['max_pitch'],
-                                                onset_group_threshold_seconds=self.config['onset_group_threshold_seconds'])
+                                                onset_group_threshold_seconds=self.config['onset_group_threshold_seconds'],
+                                                frame_rate_hz=self.feature_extractor.frame_rate_hz)
         X_train = self.feature_extractor.fit_transform(data_train)
         input_shape = (X_train.shape[1], X_train.shape[2], X_train.shape[3])
 
         if wav_file_paths_val is not None and truth_dataset_format_tuples_val is not None:
             data_val, y_val, _, _ = read_data_y(wav_file_paths_val, truth_dataset_format_tuples_val,
-                                                self.feature_extractor.frame_rate_hz,
                                                 self.feature_extractor.sample_rate,
                                                 self.feature_extractor.subsampling_step,
-                                                self.config['min_pitch'],
-                                                self.config['max_pitch'],
-                                                onset_group_threshold_seconds=self.config['onset_group_threshold_seconds'])
+                                                self.config['min_pitch'], self.config['max_pitch'],
+                                                onset_group_threshold_seconds=self.config['onset_group_threshold_seconds'],
+                                                frame_rate_hz=self.feature_extractor.frame_rate_hz)
             X_val = self.feature_extractor.transform(data_val)
             validation_data = (X_val, y_val)
         else:
@@ -354,9 +353,9 @@ class CnnPitchDetector(AbstractPitchDetector):
 
     def predict(self, path_to_wav_file, onset_times_seconds, epsilon=1e-7):
         samples = read_samples(path_to_wav_file,
-                               self.feature_extractor.frame_rate_hz,
                                self.feature_extractor.sample_rate,
-                               self.feature_extractor.subsampling_step)
+                               self.feature_extractor.subsampling_step,
+                               frame_rate_hz=self.feature_extractor.frame_rate_hz)
         if samples is None:
             return None
         X = self.feature_extractor.transform(([samples], [onset_times_seconds]))

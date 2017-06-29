@@ -18,11 +18,12 @@ from music_transcription.pitch_detection.read_data import get_wav_and_truth_file
 
 
 def predict(pitch_detector, wav_file_paths, truth_dataset_format_tuples,
-            frame_rate_hz, sample_rate, subsampling_step, min_pitch, max_pitch):
+            sample_rate, subsampling_step, min_pitch, max_pitch, onset_group_threshold_seconds):
     print('Predicting labels')
     data, y, wav_file_paths, truth_dataset_format_tuples = read_data_y(
         wav_file_paths, truth_dataset_format_tuples,
-        frame_rate_hz, sample_rate, subsampling_step, min_pitch, max_pitch
+        sample_rate, subsampling_step, min_pitch, max_pitch,
+        onset_group_threshold_seconds=onset_group_threshold_seconds
     )
     y_predicted_parts = []
     for path_to_wav, onset_times_seconds in zip(wav_file_paths, data[1]):
@@ -38,11 +39,11 @@ DATASETS_ADDITIONAL = {3}
 # DATASETS_ADDITIONAL = {3, 6}
 # DATASETS_ADDITIONAL = {3, 6, 7}
 
-frame_rate_hz = 100
 sample_rate = 44100
 subsampling_step = 1
 min_pitch = 40
 max_pitch = 88
+onset_group_threshold_seconds = 0.05
 
 wav_file_paths_cv, truth_dataset_format_tuples_cv = get_wav_and_truth_files(DATASETS_CV)
 wav_file_paths_additional, truth_dataset_format_tuples_additional = get_wav_and_truth_files(DATASETS_ADDITIONAL)
@@ -69,6 +70,6 @@ for k, (train_indices, test_indices) in enumerate(k_fold.split(wav_file_paths_cv
 
     print('TEST')
     predict(pitch_detector, wav_file_paths_test, truth_dataset_format_tuples_test,
-            frame_rate_hz, sample_rate, subsampling_step, min_pitch, max_pitch)
+            sample_rate, subsampling_step, min_pitch, max_pitch, onset_group_threshold_seconds)
 
     pitch_detector.save('../models/pitch_detection/20170625_ds12-cv_ds3-additional_fold-' + str(k) + '.zip')
