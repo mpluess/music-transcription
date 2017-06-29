@@ -1,7 +1,7 @@
 import datetime
 from keras.callbacks import EarlyStopping
-from keras.layers import Activation, Conv2D, Dense, Dropout, Flatten, MaxPooling2D
-from keras.models import Sequential, model_from_json
+from keras.layers import Activation, Concatenate, Conv2D, Dense, Dropout, Flatten, MaxPooling2D
+from keras.models import Input, Model, model_from_json
 from librosa import cqt
 import numpy as np
 import os
@@ -17,97 +17,107 @@ from music_transcription.pitch_detection.read_data import read_samples, read_dat
 
 
 class CnnCqtFeatureExtractor(BaseEstimator, TransformerMixin):
-    def __init__(self, image_data_format,
-                 sample_rate, hop_length, fmin, n_bins, bins_per_octave, scale):
+    def __init__(self, image_data_format, sample_rate, cqt_configs):
         self.image_data_format = image_data_format
-
         self.sample_rate = sample_rate
-        self.hop_length = hop_length
-        self.fmin = fmin
-        self.n_bins = n_bins
-        self.bins_per_octave = bins_per_octave
-        self.scale = scale
+        self.cqt_configs = cqt_configs
 
-        self.frame_rate_hz = sample_rate / hop_length
-
-        self.standard_scalers = None
+        self.standard_scalers_per_X = None
 
     def fit(self, data, y=None, save_data=False):
         list_of_samples, list_of_onset_times = data
 
-        X, n_frames_per_file = self._extract_spectrogram_features(list_of_samples)
+        list_of_X, list_of_n_frames_per_file, cqt_configs = self._extract_spectrogram_features(list_of_samples)
         if save_data:
-            self._X = X
-            self._n_frames_per_file = n_frames_per_file
+            self._list_of_X = list_of_X
+            self._list_of_n_frames_per_file = list_of_n_frames_per_file
+            self._cqt_configs = cqt_configs
             self._list_of_onset_times = list_of_onset_times
 
         # TODO standardize only for regions with onset?
-        print('Fitting standard scalers for each bin')
-        self.standard_scalers = []
-        for j in range(X.shape[1]):
-            standard_scaler = StandardScaler()
-            standard_scaler.fit(X[:, j:j + 1])
-            self.standard_scalers.append(standard_scaler)
+        print('Fitting standard scalers for each spectrogram and bin')
+        self.standard_scalers_per_X = []
+        for X in list_of_X:
+            standard_scalers = []
+            for j in range(X.shape[1]):
+                standard_scaler = StandardScaler()
+                standard_scaler.fit(X[:, j:j + 1])
+                standard_scalers.append(standard_scaler)
+            self.standard_scalers_per_X.append(standard_scalers)
 
         return self
 
     def transform(self, data, load_data=False):
         if load_data:
-            X = self._X
-            n_frames_per_file = self._n_frames_per_file
+            list_of_X = self._list_of_X
+            list_of_n_frames_per_file = self._list_of_n_frames_per_file
+            cqt_configs = self._cqt_configs
             list_of_onset_times = self._list_of_onset_times
-            self._X = None
-            self._n_frames_per_file = None
+            self._list_of_X = None
+            self._list_of_n_frames_per_file = None
+            self._cqt_configs = None
             self._list_of_onset_times = None
         else:
             list_of_samples, list_of_onset_times = data
-            X, n_frames_per_file = self._extract_spectrogram_features(list_of_samples)
-        # print(X.shape)
-        # print(X.mean())
-        # print(X.std())
+            list_of_X, list_of_n_frames_per_file, cqt_configs = self._extract_spectrogram_features(list_of_samples)
+        # for X in list_of_X:
+        #     print(X.shape)
+        #     print(X.mean())
+        #     print(X.std())
 
-        # print('Standardizing for each band')
-        for j, ss in enumerate(self.standard_scalers):
-            X[:, j:j + 1] = ss.transform(X[:, j:j + 1])
-        # print(X.mean())
-        # print(X.std())
+        # print('Standardizing for each spectrogram and bin')
+        for X, standard_scalers in zip(list_of_X, self.standard_scalers_per_X):
+            for j, ss in enumerate(standard_scalers):
+                X[:, j:j + 1] = ss.transform(X[:, j:j + 1])
+        # for X in list_of_X:
+        #     print(X.mean())
+        #     print(X.std())
 
-        X = self._get_X_around_onset_with_context(X, list_of_onset_times, n_frames_per_file)
-        # print(X.shape)
+        for i, (n_frames_per_file, cqt_config) in enumerate(zip(list_of_n_frames_per_file, cqt_configs)):
+            list_of_X[i] = self._get_X_around_onset_with_context(
+                list_of_X[i], list_of_onset_times, n_frames_per_file, self.sample_rate / cqt_config['hop_length']
+            )
+            # print(list_of_X[i].shape)
 
         # print('Reshaping data')
-        img_rows, img_cols = (X.shape[1], X.shape[2])
-        # Theano is 3 times faster with channels_first vs. channels_last on MNIST, so this setting matters.
-        # "image_data_format": "channels_first" @ %USERPROFILE%/.keras/keras.json
-        if self.image_data_format == 'channels_first':
-            X = X.reshape(X.shape[0], 1, img_rows, img_cols)
-        else:
-            X = X.reshape(X.shape[0], img_rows, img_cols, 1)
-        # print(X.shape)
+        for i in range(len(list_of_X)):
+            # Theano is 3 times faster with channels_first vs. channels_last on MNIST, so this setting matters.
+            # "image_data_format": "channels_first" @ %USERPROFILE%/.keras/keras.json
+            if self.image_data_format == 'channels_first':
+                list_of_X[i] = list_of_X[i].reshape(
+                    list_of_X[i].shape[0], 1, list_of_X[i].shape[1], list_of_X[i].shape[2]
+                )
+            else:
+                list_of_X[i] = list_of_X[i].reshape(
+                    list_of_X[i].shape[0], list_of_X[i].shape[1], list_of_X[i].shape[2], 1
+                )
+            # print(list_of_X[i].shape)
 
-        return X
+        return list_of_X
 
     def fit_transform(self, data, y=None, **fit_params):
         return self.fit(data, save_data=True).transform(None, load_data=True)
 
     def _extract_spectrogram_features(self, list_of_samples):
         # print('Creating spectrograms')
-        X_parts = [self._extract_spectrogram_features_X(samples)
-                   for samples in list_of_samples]
-        X = np.concatenate(X_parts)
-        n_frames_per_file = [X_part.shape[0] for X_part in X_parts]
+        list_of_X = []
+        list_of_n_frames_per_file = []
+        for cqt_config in self.cqt_configs:
+            X_parts = [self._extract_spectrogram_features_X(samples,
+                                                            hop_length=cqt_config['hop_length'],
+                                                            fmin=cqt_config['fmin'],
+                                                            n_bins=cqt_config['n_bins'],
+                                                            bins_per_octave=cqt_config['bins_per_octave'],
+                                                            scale=cqt_config['scale'])
+                       for samples in list_of_samples]
+            list_of_X.append(np.concatenate(X_parts))
+            list_of_n_frames_per_file.append([X_part.shape[0] for X_part in X_parts])
 
-        return X, n_frames_per_file
+        return list_of_X, list_of_n_frames_per_file, self.cqt_configs
 
     def _extract_spectrogram_features_X(
             self, samples,
-            hop_length=512,
-
-            # A1 (midi 33)
-            # gtr E 82.4068892282
-            fmin=55.0,
-
-            n_bins=180, bins_per_octave=36, scale=False
+            hop_length, fmin, n_bins, bins_per_octave, scale
     ):
         cqt_spectrogram = cqt(
             samples, sr=self.sample_rate, hop_length=hop_length, fmin=fmin, n_bins=n_bins,
@@ -119,7 +129,7 @@ class CnnCqtFeatureExtractor(BaseEstimator, TransformerMixin):
 
         return cqt_spectrogram
 
-    def _get_X_around_onset_with_context(self, X, list_of_onset_times, n_frames_per_file,
+    def _get_X_around_onset_with_context(self, X, list_of_onset_times, n_frames_per_file, frame_rate_hz,
                                          frames_before=5, frames_after=10, border_value=0.0):
         """X = complete spectrogram"""
         n_samples = X.shape[0]
@@ -138,7 +148,7 @@ class CnnCqtFeatureExtractor(BaseEstimator, TransformerMixin):
             start_index_per_file, n_frames_per_file, list_of_onset_times
         ):
             for onset_time in onset_times_grouped:
-                index = int(onset_time * self.frame_rate_hz)
+                index = int(onset_time * frame_rate_hz)
                 assert index < n_frames
 
                 if n_frames - index - 1 < frames_after:
@@ -173,6 +183,19 @@ class CnnCqtPitchDetector(AbstractPitchDetector):
     METRICS = None
     BATCH_SIZE = 256
 
+    # A1 (midi 33)
+    # gtr E 82.4068892282
+    # fmin = 55.0
+    DEFAULT_CQT_CONFIGS = [
+        {
+            'hop_length': 512,
+            'fmin': 55.0,
+            'n_bins': 180,
+            'bins_per_octave': 36,
+            'scale': False,
+        },
+    ]
+
     def __init__(self,
                  # loaded config, feature extractor and model
                  config=None, feature_extractor=None, model=None,
@@ -181,16 +204,7 @@ class CnnCqtPitchDetector(AbstractPitchDetector):
                  tuning=(64, 59, 55, 50, 45, 40), n_frets=24, proba_threshold=0.5, onset_group_threshold_seconds=0.05,
 
                  # feature extractor params
-                 image_data_format='channels_first',
-
-                 sample_rate=44100,
-                 hop_length=512,
-
-                 # A1 (midi 33)
-                 # gtr E 82.4068892282
-                 fmin=55.0,
-
-                 n_bins=180, bins_per_octave=36, scale=False):
+                 image_data_format='channels_first', sample_rate=44100, cqt_configs=None):
         if config is None:
             super().__init__(tuning, n_frets)
             self.config['proba_threshold'] = proba_threshold
@@ -199,13 +213,11 @@ class CnnCqtPitchDetector(AbstractPitchDetector):
             self.config = config
 
         if feature_extractor is None:
-            self.feature_extractor = CnnCqtFeatureExtractor(image_data_format=image_data_format,
-                                                            sample_rate=sample_rate,
-                                                            hop_length=hop_length,
-                                                            fmin=fmin,
-                                                            n_bins=n_bins,
-                                                            bins_per_octave=bins_per_octave,
-                                                            scale=scale)
+            if cqt_configs is None:
+                cqt_configs = CnnCqtPitchDetector.DEFAULT_CQT_CONFIGS
+            self.feature_extractor = CnnCqtFeatureExtractor(image_data_format,
+                                                            sample_rate,
+                                                            cqt_configs)
         else:
             self.feature_extractor = feature_extractor
 
@@ -293,51 +305,58 @@ class CnnCqtPitchDetector(AbstractPitchDetector):
                                                 self.feature_extractor.sample_rate, 1,
                                                 self.config['min_pitch'], self.config['max_pitch'],
                                                 onset_group_threshold_seconds=self.config['onset_group_threshold_seconds'])
-        X_train = self.feature_extractor.fit_transform(data_train)
-        input_shape = (X_train.shape[1], X_train.shape[2], X_train.shape[3])
+        list_of_X_train = self.feature_extractor.fit_transform(data_train)
 
         if wav_file_paths_val is not None and truth_dataset_format_tuples_val is not None:
             data_val, y_val, _, _ = read_data_y(wav_file_paths_val, truth_dataset_format_tuples_val,
                                                 self.feature_extractor.sample_rate, 1,
                                                 self.config['min_pitch'], self.config['max_pitch'],
                                                 onset_group_threshold_seconds=self.config['onset_group_threshold_seconds'])
-            X_val = self.feature_extractor.transform(data_val)
-            validation_data = (X_val, y_val)
+            list_of_X_val = self.feature_extractor.transform(data_val)
+            monitor = 'val_loss'
+            validation_data = (list_of_X_val, y_val)
         else:
+            monitor = 'loss'
             validation_data = None
 
-        self.model = self._create_model(input_shape,
+        self.model = self._create_model(list_of_X_train,
                                         self.config['max_pitch'] - self.config['min_pitch'] + 1)
-        self.model.fit(X_train, y_train,
+        self.model.fit(list_of_X_train, y_train,
                        epochs=1000,
                        batch_size=self.BATCH_SIZE,
-                       callbacks=[EarlyStopping(monitor='loss', patience=8)], verbose=2,
+                       callbacks=[EarlyStopping(monitor=monitor, patience=6)], verbose=2,
                        validation_data=validation_data)
 
     @classmethod
-    def _create_model(cls, input_shape, n_output_units):
+    def _create_model(cls, list_of_X, n_output_units):
         """Keras model description
 
         Multi-label classification with Keras: https://github.com/fchollet/keras/issues/741
         """
 
-        model = Sequential()
+        inputs = []
+        conv_blocks = []
+        for X in list_of_X:
+            spectrogram = Input(shape=X.shape[1:])
+            inputs.append(spectrogram)
 
-        model.add(Conv2D(10, (7, 3), padding='valid', input_shape=input_shape))
-        model.add(Activation('relu'))
-        model.add(MaxPooling2D(pool_size=(1, 3)))
-        model.add(Conv2D(20, (3, 3), padding='valid'))
-        model.add(Activation('relu'))
-        model.add(MaxPooling2D(pool_size=(1, 3)))
-        model.add(Dropout(0.25))
+            conv = Conv2D(10, (7, 3), padding='valid')(spectrogram)
+            conv = Activation('relu')(conv)
+            conv = MaxPooling2D(pool_size=(1, 3))(conv)
+            conv = Conv2D(20, (3, 3), padding='valid')(conv)
+            conv = Activation('relu')(conv)
+            conv = MaxPooling2D(pool_size=(1, 3))(conv)
+            conv = Dropout(0.25)(conv)
+            conv = Flatten()(conv)
+            conv_blocks.append(conv)
 
-        model.add(Flatten())
-        model.add(Dense(256))
-        model.add(Activation('relu'))
-        model.add(Dropout(0.5))
-        model.add(Dense(n_output_units))
-        model.add(Activation('sigmoid'))
+        z = Concatenate()(conv_blocks) if len(conv_blocks) > 1 else conv_blocks[0]
+        z = Dense(256)(z)
+        z = Activation('relu')(z)
+        z = Dropout(0.5)(z)
+        output = Dense(n_output_units, activation='sigmoid')(z)
 
+        model = Model(inputs, output)
         model.compile(loss=cls.LOSS, optimizer=cls.OPTIMIZER, metrics=cls.METRICS)
         model.summary()
 
@@ -349,9 +368,9 @@ class CnnCqtPitchDetector(AbstractPitchDetector):
                                1)
         if samples is None:
             return None
-        X = self.feature_extractor.transform(([samples], [onset_times_seconds]))
+        list_of_X = self.feature_extractor.transform(([samples], [onset_times_seconds]))
 
-        proba_matrix = self.model.predict(X)
+        proba_matrix = self.model.predict(list_of_X)
         y = proba_matrix > self.config['proba_threshold']
         y = y.astype(np.int8)
 

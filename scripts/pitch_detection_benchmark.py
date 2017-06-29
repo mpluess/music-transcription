@@ -46,7 +46,7 @@ assert len(wav_file_paths_test) == len(data_test[1])
 # assert onset_group_threshold_seconds == pitch_detector.config['onset_group_threshold_seconds']
 
 from music_transcription.pitch_detection.cnn_cqt_pitch_detection import CnnCqtPitchDetector
-pitch_detector = CnnCqtPitchDetector.from_zip('../models/pitch_detection/20170629_1127_cqt_ds1-3_80-perc_onset-group-thresh-0.05.zip')
+pitch_detector = CnnCqtPitchDetector.from_zip('../models/pitch_detection/20170629_1443_cqt_audio_effects_poly_80-perc_onset-group-thresh-0.05.zip')
 assert sample_rate == pitch_detector.feature_extractor.sample_rate
 assert subsampling_step == 1
 assert min_pitch == pitch_detector.config['min_pitch']
