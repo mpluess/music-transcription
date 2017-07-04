@@ -67,8 +67,12 @@
 # b = [1, 2]
 # assert a == b
 
-from music_transcription.pitch_detection.cnn_cqt_pitch_detection import CnnCqtPitchDetector
-print(CnnCqtPitchDetector._get_sample_weights(
-    [0, 1, 1, 2, 2, 2, 0, 0, 2],
-    [(0, 1, 0), (0, 2, 0), (0, 4, 0)]
-))
+# from music_transcription.pitch_detection.cnn_cqt_pitch_detection import CnnCqtPitchDetector
+# print(CnnCqtPitchDetector._get_sample_weights(
+#     [0, 1, 1, 2, 2, 2, 0, 0, 2],
+#     [(0, 1, 0), (0, 2, 0), (0, 4, 0)]
+# ))
+
+import re
+p = re.compile(r'\.gp5$')
+print(p.sub('', 'gp.gp5'))
