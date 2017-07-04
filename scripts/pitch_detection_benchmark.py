@@ -4,9 +4,9 @@ from sklearn.model_selection import train_test_split
 
 from music_transcription.pitch_detection.read_data import get_wav_and_truth_files, read_data_y
 
-active_datasets = {1, 2, 3}
+# active_datasets = {1, 2, 3}
 # active_datasets = {1, 2}
-# active_datasets = {6}
+active_datasets = {6}
 # active_datasets = {1, 2, 3, 6}
 # active_datasets = {7}
 wav_file_paths, truth_dataset_format_tuples = get_wav_and_truth_files(active_datasets)
@@ -48,7 +48,7 @@ assert len(wav_file_paths_test) == len(data_test[1])
 from music_transcription.pitch_detection.cnn_cqt_pitch_detection import CnnCqtPitchDetector
 pitch_detector = CnnCqtPitchDetector.from_zip('../models/pitch_detection/20170629_1443_cqt_audio_effects_poly_80-perc_onset-group-thresh-0.05.zip')
 assert sample_rate == pitch_detector.feature_extractor.sample_rate
-assert subsampling_step == 1
+assert subsampling_step == pitch_detector.config['subsampling_step']
 assert min_pitch == pitch_detector.config['min_pitch']
 assert max_pitch == pitch_detector.config['max_pitch']
 assert onset_group_threshold_seconds == pitch_detector.config['onset_group_threshold_seconds']
@@ -67,6 +67,8 @@ assert y_test.shape == y_test_predicted.shape
 print('Accuracy: {}'.format(sklearn.metrics.accuracy_score(y_test, y_test_predicted)))
 print(sklearn.metrics.classification_report(y_test, y_test_predicted,
                                             target_names=[str(pitch) for pitch in range(min_pitch, max_pitch + 1)]))
+
+
 
 # Verbose / confusion
 # y_test_offset = 0

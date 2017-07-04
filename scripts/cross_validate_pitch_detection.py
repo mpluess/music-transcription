@@ -14,6 +14,7 @@ from sklearn.metrics import accuracy_score, classification_report
 from sklearn.model_selection import KFold
 
 from music_transcription.pitch_detection.cnn_pitch_detection import CnnPitchDetector
+from music_transcription.pitch_detection.cnn_cqt_pitch_detection import CnnCqtPitchDetector
 from music_transcription.pitch_detection.read_data import get_wav_and_truth_files, read_data_y
 
 
@@ -35,9 +36,9 @@ def predict(pitch_detector, wav_file_paths, truth_dataset_format_tuples,
                                 target_names=[str(pitch) for pitch in range(min_pitch, max_pitch + 1)]))
 
 DATASETS_CV = {1, 2}
-DATASETS_ADDITIONAL = {3}
+# DATASETS_ADDITIONAL = {3}
 # DATASETS_ADDITIONAL = {3, 6}
-# DATASETS_ADDITIONAL = {3, 6, 7}
+DATASETS_ADDITIONAL = {3, 6, 7}
 
 sample_rate = 44100
 subsampling_step = 1
@@ -59,7 +60,8 @@ for k, (train_indices, test_indices) in enumerate(k_fold.split(wav_file_paths_cv
     wav_file_paths_test = [wav_file_paths_cv[i] for i in test_indices]
     truth_dataset_format_tuples_test = [truth_dataset_format_tuples_cv[i] for i in test_indices]
 
-    pitch_detector = CnnPitchDetector()
+    # pitch_detector = CnnPitchDetector()
+    pitch_detector = CnnCqtPitchDetector()
     print('Fitting pitch detector')
     pitch_detector.fit(wav_file_paths_train, truth_dataset_format_tuples_train,
                        wav_file_paths_test, truth_dataset_format_tuples_test)
@@ -72,4 +74,4 @@ for k, (train_indices, test_indices) in enumerate(k_fold.split(wav_file_paths_cv
     predict(pitch_detector, wav_file_paths_test, truth_dataset_format_tuples_test,
             sample_rate, subsampling_step, min_pitch, max_pitch, onset_group_threshold_seconds)
 
-    pitch_detector.save('../models/pitch_detection/20170625_ds12-cv_ds3-additional_fold-' + str(k) + '.zip')
+    pitch_detector.save('../models/pitch_detection/20170704_1029_cqt_ds12-cv_ds367-additional_onset-group-thresh-0.05_20-filters_sample-weights_fold-' + str(k) + '.zip')

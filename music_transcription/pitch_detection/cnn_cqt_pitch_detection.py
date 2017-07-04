@@ -1,3 +1,4 @@
+from collections import defaultdict
 import datetime
 from keras.callbacks import EarlyStopping
 from keras.layers import Activation, Concatenate, Conv2D, Dense, Dropout, Flatten, MaxPooling2D
@@ -73,10 +74,16 @@ class CnnCqtFeatureExtractor(BaseEstimator, TransformerMixin):
         #     print(X.mean())
         #     print(X.std())
 
+        sample_file_indexes = None
         for i, (n_frames_per_file, cqt_config) in enumerate(zip(list_of_n_frames_per_file, cqt_configs)):
-            list_of_X[i] = self._get_X_around_onset_with_context(
+            list_of_X[i], sample_file_indexes_i = self._get_X_around_onset_with_context(
                 list_of_X[i], list_of_onset_times, n_frames_per_file, self.sample_rate / cqt_config['hop_length']
             )
+            assert len(list_of_X[i]) == len(sample_file_indexes_i)
+            if sample_file_indexes is None:
+                sample_file_indexes = sample_file_indexes_i
+            else:
+                assert sample_file_indexes == sample_file_indexes_i
             # print(list_of_X[i].shape)
 
         # print('Reshaping data')
@@ -93,7 +100,7 @@ class CnnCqtFeatureExtractor(BaseEstimator, TransformerMixin):
                 )
             # print(list_of_X[i].shape)
 
-        return list_of_X
+        return list_of_X, sample_file_indexes
 
     def fit_transform(self, data, y=None, **fit_params):
         return self.fit(data, save_data=True).transform(None, load_data=True)
@@ -144,9 +151,10 @@ class CnnCqtFeatureExtractor(BaseEstimator, TransformerMixin):
         assert len(start_index_per_file) == len(list_of_onset_times)
 
         start_indices = []
-        for start_index, n_frames, onset_times_grouped in zip(
+        sample_file_indexes = []
+        for i, (start_index, n_frames, onset_times_grouped) in enumerate(zip(
             start_index_per_file, n_frames_per_file, list_of_onset_times
-        ):
+        )):
             for onset_time in onset_times_grouped:
                 index = int(onset_time * frame_rate_hz)
                 assert index < n_frames
@@ -155,6 +163,7 @@ class CnnCqtFeatureExtractor(BaseEstimator, TransformerMixin):
                     warn('Onset is too close to end of file ({} < {}), '
                          'operation will add context from different file!'.format(n_frames - index - 1, frames_after))
                 start_indices.append(start_index + index)
+                sample_file_indexes.append(i)
 
         n_onsets = len(start_indices)
         n_bins = X.shape[1]
@@ -168,7 +177,7 @@ class CnnCqtFeatureExtractor(BaseEstimator, TransformerMixin):
                 else:
                     X_new[i, offset + frames_before].fill(border_value)
 
-        return X_new
+        return X_new, sample_file_indexes
 
 
 # TODO Try alternative using 3 differents CQT spectrograms with 3 parallel CNNs
@@ -195,6 +204,29 @@ class CnnCqtPitchDetector(AbstractPitchDetector):
             'scale': False,
         },
     ]
+    # CQT_CONFIGS_3_VARIANTS =[
+    #     {
+    #         'hop_length': 256,
+    #         'fmin': 55.0,
+    #         'n_bins': 60,
+    #         'bins_per_octave': 12,
+    #         'scale': False,
+    #     },
+    #     {
+    #         'hop_length': 512,
+    #         'fmin': 55.0,
+    #         'n_bins': 180,
+    #         'bins_per_octave': 36,
+    #         'scale': False,
+    #     },
+    #     {
+    #         'hop_length': 1024,
+    #         'fmin': 55.0,
+    #         'n_bins': 300,
+    #         'bins_per_octave': 60,
+    #         'scale': False,
+    #     },
+    # ]
 
     def __init__(self,
                  # loaded config, feature extractor and model
@@ -202,6 +234,7 @@ class CnnCqtPitchDetector(AbstractPitchDetector):
 
                  # config params
                  tuning=(64, 59, 55, 50, 45, 40), n_frets=24, proba_threshold=0.5, onset_group_threshold_seconds=0.05,
+                 subsampling_step=1,
 
                  # feature extractor params
                  image_data_format='channels_first', sample_rate=44100, cqt_configs=None):
@@ -209,6 +242,7 @@ class CnnCqtPitchDetector(AbstractPitchDetector):
             super().__init__(tuning, n_frets)
             self.config['proba_threshold'] = proba_threshold
             self.config['onset_group_threshold_seconds'] = onset_group_threshold_seconds
+            self.config['subsampling_step'] = subsampling_step
         else:
             self.config = config
 
@@ -300,21 +334,27 @@ class CnnCqtPitchDetector(AbstractPitchDetector):
         shutil.rmtree(work_dir)
 
     def fit(self, wav_file_paths_train, truth_dataset_format_tuples_train,
-            wav_file_paths_val=None, truth_dataset_format_tuples_val=None):
-        data_train, y_train, _, _ = read_data_y(wav_file_paths_train, truth_dataset_format_tuples_train,
-                                                self.feature_extractor.sample_rate, 1,
-                                                self.config['min_pitch'], self.config['max_pitch'],
-                                                onset_group_threshold_seconds=self.config['onset_group_threshold_seconds'])
-        list_of_X_train = self.feature_extractor.fit_transform(data_train)
+            wav_file_paths_val=None, truth_dataset_format_tuples_val=None,
+            sample_weights=None):
+        data_train, y_train, wav_file_paths_train_valid, truth_dataset_format_tuples_train_valid = read_data_y(
+            wav_file_paths_train, truth_dataset_format_tuples_train,
+            self.feature_extractor.sample_rate, self.config['subsampling_step'],
+            self.config['min_pitch'], self.config['max_pitch'],
+            onset_group_threshold_seconds=self.config['onset_group_threshold_seconds']
+        )
+        list_of_X_train, sample_file_indexes_train = self.feature_extractor.fit_transform(data_train)
 
         if wav_file_paths_val is not None and truth_dataset_format_tuples_val is not None:
-            data_val, y_val, _, _ = read_data_y(wav_file_paths_val, truth_dataset_format_tuples_val,
-                                                self.feature_extractor.sample_rate, 1,
-                                                self.config['min_pitch'], self.config['max_pitch'],
-                                                onset_group_threshold_seconds=self.config['onset_group_threshold_seconds'])
-            list_of_X_val = self.feature_extractor.transform(data_val)
+            data_val, y_val, wav_file_paths_val_valid, truth_dataset_format_tuples_val_valid = read_data_y(
+                wav_file_paths_val, truth_dataset_format_tuples_val,
+                self.feature_extractor.sample_rate, self.config['subsampling_step'],
+                self.config['min_pitch'], self.config['max_pitch'],
+                onset_group_threshold_seconds=self.config['onset_group_threshold_seconds']
+            )
+            list_of_X_val, sample_file_indexes_val = self.feature_extractor.transform(data_val)
             monitor = 'val_loss'
-            validation_data = (list_of_X_val, y_val)
+            validation_data = (list_of_X_val, y_val, self._get_sample_weights(sample_file_indexes_val,
+                                                                              truth_dataset_format_tuples_val_valid))
         else:
             monitor = 'loss'
             validation_data = None
@@ -324,8 +364,42 @@ class CnnCqtPitchDetector(AbstractPitchDetector):
         self.model.fit(list_of_X_train, y_train,
                        epochs=1000,
                        batch_size=self.BATCH_SIZE,
+                       sample_weight=self._get_sample_weights(sample_file_indexes_train,
+                                                              truth_dataset_format_tuples_train_valid),
                        callbacks=[EarlyStopping(monitor=monitor, patience=6)], verbose=2,
                        validation_data=validation_data)
+
+    @staticmethod
+    def _get_sample_weights(sample_file_indexes, truth_dataset_format_tuples_valid):
+        """Assign sample weights inversely proportional to the number of samples in a dataset.
+
+        Rationale: boost the samples in the small datasets so all datasets have the same impact.
+        """
+
+        def transform_dataset(dataset):
+            """Merge datasets 1-3"""
+
+            if dataset in {1, 2, 3}:
+                return 123
+            else:
+                return dataset
+
+        assert max(sample_file_indexes) == len(truth_dataset_format_tuples_valid) - 1
+
+        dataset_counts = defaultdict(int)
+        for i in sample_file_indexes:
+            _, dataset, _ = truth_dataset_format_tuples_valid[i]
+            dataset_counts[transform_dataset(dataset)] += 1
+        print('dataset_counts={}'.format(dataset_counts))
+
+        # Weights = inversely proportional to number of samples in dataset.
+        # Multiply by the min count so the smallest dataset has weight 1.
+        dataset_weights = {dataset: 1/count*min(dataset_counts.values()) for dataset, count in dataset_counts.items()}
+        print('dataset_weights={}'.format(dataset_weights))
+        sample_weights = np.array([dataset_weights[transform_dataset(truth_dataset_format_tuples_valid[i][1])]
+                                   for i in sample_file_indexes])
+
+        return sample_weights
 
     @classmethod
     def _create_model(cls, list_of_X, n_output_units):
@@ -340,7 +414,7 @@ class CnnCqtPitchDetector(AbstractPitchDetector):
             spectrogram = Input(shape=X.shape[1:])
             inputs.append(spectrogram)
 
-            conv = Conv2D(10, (7, 3), padding='valid')(spectrogram)
+            conv = Conv2D(20, (7, 3), padding='valid')(spectrogram)
             conv = Activation('relu')(conv)
             conv = MaxPooling2D(pool_size=(1, 3))(conv)
             conv = Conv2D(20, (3, 3), padding='valid')(conv)
@@ -365,10 +439,10 @@ class CnnCqtPitchDetector(AbstractPitchDetector):
     def predict(self, path_to_wav_file, onset_times_seconds, epsilon=1e-7):
         samples = read_samples(path_to_wav_file,
                                self.feature_extractor.sample_rate,
-                               1)
+                               self.config['subsampling_step'])
         if samples is None:
             return None
-        list_of_X = self.feature_extractor.transform(([samples], [onset_times_seconds]))
+        list_of_X, _ = self.feature_extractor.transform(([samples], [onset_times_seconds]))
 
         proba_matrix = self.model.predict(list_of_X)
         y = proba_matrix > self.config['proba_threshold']

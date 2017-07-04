@@ -20,9 +20,9 @@ DATASET_CORRECTIONS = {
     4: 0.0,
     # recordings
     5: 0.0,
-    # IDMT-SMT-AUDIO-EFFECTS monophon
+    # IDMT-SMT-AUDIO-EFFECTS monophonic
     6: 0.0,
-    # IDMT-SMT-AUDIO-EFFECTS polyphon
+    # IDMT-SMT-AUDIO-EFFECTS polyphonic
     7: 0.0,
 }
 

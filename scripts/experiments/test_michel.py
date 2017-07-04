@@ -28,26 +28,26 @@
 # print(a)
 # print(a > 0.5)
 
-import os
-import pickle
-from zipfile import ZipFile
-
-config = {
-    'onset_group_threshold_seconds': 0.05
-}
-config_file = r'D:\Users\Michel\Documents\FH\module\8_IP6\git\models\onset_detection\config.pickle'
-with open(config_file, 'wb') as f:
-    pickle.dump(config, f)
-
-to_zip = [
-    config_file,
-    r'D:\Users\Michel\Documents\FH\module\8_IP6\git\models\onset_detection\feature_extractor.pickle',
-    r'D:\Users\Michel\Documents\FH\module\8_IP6\git\models\onset_detection\model.json',
-    r'D:\Users\Michel\Documents\FH\module\8_IP6\git\models\onset_detection\weights.hdf5',
-]
-with ZipFile(r'D:\Users\Michel\Documents\FH\module\8_IP6\git\models\onset_detection\20170627-3-channels_ds1-4_80-perc_adjusted-labels_with_config_thresh-0.05.zip', 'w') as zip_file:
-    for path_to_file in to_zip:
-        zip_file.write(path_to_file, arcname=os.path.basename(path_to_file))
+# import os
+# import pickle
+# from zipfile import ZipFile
+#
+# config = {
+#     'onset_group_threshold_seconds': 0.05
+# }
+# config_file = r'D:\Users\Michel\Documents\FH\module\8_IP6\git\models\onset_detection\config.pickle'
+# with open(config_file, 'wb') as f:
+#     pickle.dump(config, f)
+#
+# to_zip = [
+#     config_file,
+#     r'D:\Users\Michel\Documents\FH\module\8_IP6\git\models\onset_detection\feature_extractor.pickle',
+#     r'D:\Users\Michel\Documents\FH\module\8_IP6\git\models\onset_detection\model.json',
+#     r'D:\Users\Michel\Documents\FH\module\8_IP6\git\models\onset_detection\weights.hdf5',
+# ]
+# with ZipFile(r'D:\Users\Michel\Documents\FH\module\8_IP6\git\models\onset_detection\20170627-3-channels_ds1-4_80-perc_adjusted-labels_with_config_thresh-0.05.zip', 'w') as zip_file:
+#     for path_to_file in to_zip:
+#         zip_file.write(path_to_file, arcname=os.path.basename(path_to_file))
 
 # a = 22.239999999999998
 # b = 22.27
@@ -62,3 +62,13 @@ with ZipFile(r'D:\Users\Michel\Documents\FH\module\8_IP6\git\models\onset_detect
 
 # print(5 / 3)
 # print(round(5 / 3, 3))
+
+# a = [1, 2, 4]
+# b = [1, 2]
+# assert a == b
+
+from music_transcription.pitch_detection.cnn_cqt_pitch_detection import CnnCqtPitchDetector
+print(CnnCqtPitchDetector._get_sample_weights(
+    [0, 1, 1, 2, 2, 2, 0, 0, 2],
+    [(0, 1, 0), (0, 2, 0), (0, 4, 0)]
+))
