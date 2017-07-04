@@ -28,6 +28,7 @@ class CnnCqtFeatureExtractor(BaseEstimator, TransformerMixin):
     def fit(self, data, y=None, save_data=False):
         list_of_samples, list_of_onset_times = data
 
+        print('Creating spectrograms')
         list_of_X, list_of_n_frames_per_file, cqt_configs = self._extract_spectrogram_features(list_of_samples)
         if save_data:
             self._list_of_X = list_of_X
@@ -48,7 +49,7 @@ class CnnCqtFeatureExtractor(BaseEstimator, TransformerMixin):
 
         return self
 
-    def transform(self, data, load_data=False):
+    def transform(self, data, load_data=False, verbose=False):
         if load_data:
             list_of_X = self._list_of_X
             list_of_n_frames_per_file = self._list_of_n_frames_per_file
@@ -60,19 +61,24 @@ class CnnCqtFeatureExtractor(BaseEstimator, TransformerMixin):
             self._list_of_onset_times = None
         else:
             list_of_samples, list_of_onset_times = data
+            if verbose:
+                print('Creating spectrograms')
             list_of_X, list_of_n_frames_per_file, cqt_configs = self._extract_spectrogram_features(list_of_samples)
-        # for X in list_of_X:
-        #     print(X.shape)
-        #     print(X.mean())
-        #     print(X.std())
+        if verbose:
+            for X in list_of_X:
+                print(X.shape)
+                print(X.mean())
+                print(X.std())
 
-        # print('Standardizing for each spectrogram and bin')
+        if verbose:
+            print('Standardizing for each spectrogram and bin')
         for X, standard_scalers in zip(list_of_X, self.standard_scalers_per_X):
             for j, ss in enumerate(standard_scalers):
                 X[:, j:j + 1] = ss.transform(X[:, j:j + 1])
-        # for X in list_of_X:
-        #     print(X.mean())
-        #     print(X.std())
+        if verbose:
+            for X in list_of_X:
+                print(X.mean())
+                print(X.std())
 
         sample_file_indexes = None
         for i, (n_frames_per_file, cqt_config) in enumerate(zip(list_of_n_frames_per_file, cqt_configs)):
@@ -84,9 +90,11 @@ class CnnCqtFeatureExtractor(BaseEstimator, TransformerMixin):
                 sample_file_indexes = sample_file_indexes_i
             else:
                 assert sample_file_indexes == sample_file_indexes_i
-            # print(list_of_X[i].shape)
+            if verbose:
+                print(list_of_X[i].shape)
 
-        # print('Reshaping data')
+        if verbose:
+            print('Reshaping data')
         for i in range(len(list_of_X)):
             # Theano is 3 times faster with channels_first vs. channels_last on MNIST, so this setting matters.
             # "image_data_format": "channels_first" @ %USERPROFILE%/.keras/keras.json
@@ -98,15 +106,15 @@ class CnnCqtFeatureExtractor(BaseEstimator, TransformerMixin):
                 list_of_X[i] = list_of_X[i].reshape(
                     list_of_X[i].shape[0], list_of_X[i].shape[1], list_of_X[i].shape[2], 1
                 )
-            # print(list_of_X[i].shape)
+            if verbose:
+                print(list_of_X[i].shape)
 
         return list_of_X, sample_file_indexes
 
     def fit_transform(self, data, y=None, **fit_params):
-        return self.fit(data, save_data=True).transform(None, load_data=True)
+        return self.fit(data, save_data=True).transform(None, load_data=True, verbose=True)
 
     def _extract_spectrogram_features(self, list_of_samples):
-        # print('Creating spectrograms')
         list_of_X = []
         list_of_n_frames_per_file = []
         for cqt_config in self.cqt_configs:
@@ -180,7 +188,6 @@ class CnnCqtFeatureExtractor(BaseEstimator, TransformerMixin):
         return X_new, sample_file_indexes
 
 
-# TODO Try alternative using 3 differents CQT spectrograms with 3 parallel CNNs
 class CnnCqtPitchDetector(AbstractPitchDetector):
     CONFIG_FILE = 'config.pickle'
     FEATURE_EXTRACTOR_FILE = 'feature_extractor.pickle'
@@ -351,7 +358,7 @@ class CnnCqtPitchDetector(AbstractPitchDetector):
                 self.config['min_pitch'], self.config['max_pitch'],
                 onset_group_threshold_seconds=self.config['onset_group_threshold_seconds']
             )
-            list_of_X_val, sample_file_indexes_val = self.feature_extractor.transform(data_val)
+            list_of_X_val, sample_file_indexes_val = self.feature_extractor.transform(data_val, verbose=True)
             monitor = 'val_loss'
             validation_data = (list_of_X_val, y_val, self._get_sample_weights(sample_file_indexes_val,
                                                                               truth_dataset_format_tuples_val_valid))
