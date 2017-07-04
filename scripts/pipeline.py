@@ -27,6 +27,9 @@ DATA_DIR = r'..\data'
 # path_to_wav_file = os.path.join(DATA_DIR, r'IDMT-SMT-GUITAR_V2\dataset3\audio\nocturneNr2.wav')
 path_to_wav_file = os.path.join(DATA_DIR, r'recordings\audio\mim-riff1-short-slow.wav')
 
+# tempo = None
+tempo = 49
+
 # Standard tuning:
 # string / fret
 # 0/0 = 64
@@ -55,7 +58,8 @@ for onset, pitch, string, fret in zip(onset_times_seconds, list_of_pitch_sets, l
     print('onset={}, pitch={}, string={}, fret={}'.format(onset, sorted(pitch, reverse=True), string, fret))
 
 beat_converter = SimpleBeatConverter()
-beat_converter.set_tempo(49)
+if tempo is not None:
+    beat_converter.set_tempo(tempo)
 beats = beat_converter.transform(path_to_wav_file, onset_times_seconds, list_of_pitch_sets, list_of_string_lists, list_of_fret_lists)
 
 measures = []
@@ -68,7 +72,7 @@ for i, measure in enumerate(beats):
 tracks = [
     Track(
         "Electric Guitar",
-        6, tuning + (-1,),
+        len(tuning), tuning + (-1,),
         1, 1, 2, n_frets, 0, (200, 55, 55, 0), 30
     ),
 ]
