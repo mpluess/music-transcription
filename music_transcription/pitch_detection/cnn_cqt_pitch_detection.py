@@ -241,7 +241,7 @@ class CnnCqtPitchDetector(AbstractPitchDetector):
 
                  # config params
                  tuning=(64, 59, 55, 50, 45, 40), n_frets=24, proba_threshold=0.5, onset_group_threshold_seconds=0.05,
-                 subsampling_step=1,
+                 subsampling_step=1, sample_weights=None,
 
                  # feature extractor params
                  image_data_format='channels_first', sample_rate=44100, cqt_configs=None):
@@ -250,6 +250,9 @@ class CnnCqtPitchDetector(AbstractPitchDetector):
             self.config['proba_threshold'] = proba_threshold
             self.config['onset_group_threshold_seconds'] = onset_group_threshold_seconds
             self.config['subsampling_step'] = subsampling_step
+
+            assert sample_weights is None or sample_weights == 'balanced'
+            self.config['sample_weights'] = sample_weights
         else:
             self.config = config
 
@@ -341,8 +344,7 @@ class CnnCqtPitchDetector(AbstractPitchDetector):
         shutil.rmtree(work_dir)
 
     def fit(self, wav_file_paths_train, truth_dataset_format_tuples_train,
-            wav_file_paths_val=None, truth_dataset_format_tuples_val=None,
-            sample_weights=None):
+            wav_file_paths_val=None, truth_dataset_format_tuples_val=None):
         data_train, y_train, wav_file_paths_train_valid, truth_dataset_format_tuples_train_valid = read_data_y(
             wav_file_paths_train, truth_dataset_format_tuples_train,
             self.feature_extractor.sample_rate, self.config['subsampling_step'],
@@ -360,19 +362,26 @@ class CnnCqtPitchDetector(AbstractPitchDetector):
             )
             list_of_X_val, sample_file_indexes_val = self.feature_extractor.transform(data_val, verbose=True)
             monitor = 'val_loss'
-            validation_data = (list_of_X_val, y_val, self._get_sample_weights(sample_file_indexes_val,
-                                                                              truth_dataset_format_tuples_val_valid))
+            if self.config['sample_weights'] == 'balanced':
+                validation_data = (list_of_X_val, y_val, self._get_sample_weights(sample_file_indexes_val,
+                                                                                  truth_dataset_format_tuples_val_valid))
+            else:
+                validation_data = (list_of_X_val, y_val)
         else:
             monitor = 'loss'
             validation_data = None
 
         self.model = self._create_model(list_of_X_train,
                                         self.config['max_pitch'] - self.config['min_pitch'] + 1)
+        if self.config['sample_weights'] == 'balanced':
+            sample_weights = self._get_sample_weights(sample_file_indexes_train,
+                                                      truth_dataset_format_tuples_train_valid)
+        else:
+            sample_weights = None
         self.model.fit(list_of_X_train, y_train,
                        epochs=1000,
                        batch_size=self.BATCH_SIZE,
-                       sample_weight=self._get_sample_weights(sample_file_indexes_train,
-                                                              truth_dataset_format_tuples_train_valid),
+                       sample_weight=sample_weights,
                        callbacks=[EarlyStopping(monitor=monitor, patience=6)], verbose=2,
                        validation_data=validation_data)
 

@@ -17,7 +17,7 @@ from music_transcription.string_fret_detection.read_data import read_data_y
 from music_transcription.string_fret_detection.cnn_string_detector import CnnStringDetector, CnnStringFeatureExtractor
 
 
-active_datasets = {1, 2, 3, 4}
+# active_datasets = {1, 2, 3}
 active_datasets = {1}
 # X_parts, y_parts, y_start_only_parts, ds_labels
 wav_file_paths, truth_dataset_format_tuples = get_wav_and_truth_files(active_datasets)
@@ -34,4 +34,4 @@ X_train = feature_extractor.fit_transform(data_train)"""
 cnn_string_detector = CnnStringDetector()
 cnn_string_detector.fit(wav_file_paths_train, truth_dataset_format_tuples_train,
                         wav_file_paths_test, truth_dataset_format_tuples_test)
-cnn_string_detector.save('../models/string_detection/20170706_1640_ds1.zip')
+cnn_string_detector.save('../models/string_detection/20170706_1713_ds1.zip')

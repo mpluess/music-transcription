@@ -26,6 +26,12 @@ DATASET_CORRECTIONS = {
     7: 0.0,
     # generated
     8: 0.0,
+    # IDMT-SMT-AUDIO-EFFECTS monophonic NoFX
+    9: 0.0,
+    # IDMT-SMT-AUDIO-EFFECTS polyphonic NoFX
+    10: 0.0,
+    # generated 41, 42, 75-88
+    11: 0.0,
 }
 
 
@@ -39,7 +45,7 @@ def get_wav_and_truth_files(active_datasets):
     wav_file_paths: List of wave file paths
     truth_dataset_format_tuples: List of tuples (path_to_truth_file, dataset, format)
 
-    dataset labels: one of 1, 2, 3, 4, 5, 6, 7, 8
+    dataset labels: one of 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11
     truth formats: one of 'csv', 'xml'
     """
 
@@ -88,9 +94,29 @@ def get_wav_and_truth_files(active_datasets):
             ))
     if 8 in active_datasets:
         dir_tuples.append((
-            os.path.join(DATA_DIR, r'generated\audio'),
-            os.path.join(DATA_DIR, r'generated\annotation'),
+            os.path.join(DATA_DIR, r'generated\all\audio'),
+            os.path.join(DATA_DIR, r'generated\all\annotation'),
             8,
+        ))
+    if 9 in active_datasets:
+        path_to_ds = os.path.join(DATA_DIR, 'IDMT-SMT-AUDIO-EFFECTS', 'Gitarre monophon')
+        dir_tuples.append((
+            os.path.join(path_to_ds, 'Samples', 'NoFX'),
+            os.path.join(path_to_ds, 'annotation', 'NoFX'),
+            9,
+        ))
+    if 10 in active_datasets:
+        path_to_ds = os.path.join(DATA_DIR, 'IDMT-SMT-AUDIO-EFFECTS', 'Gitarre polyphon')
+        dir_tuples.append((
+            os.path.join(path_to_ds, 'Samples', 'NoFX'),
+            os.path.join(path_to_ds, 'annotation', 'NoFX'),
+            10,
+        ))
+    if 11 in active_datasets:
+        dir_tuples.append((
+            os.path.join(DATA_DIR, r'generated\filtered\audio'),
+            os.path.join(DATA_DIR, r'generated\filtered\annotation'),
+            11,
         ))
 
     wav_file_paths = []
