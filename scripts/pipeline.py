@@ -26,6 +26,7 @@ DATA_DIR = r'..\data'
 # path_to_wav_file = os.path.join(DATA_DIR, r'IDMT-SMT-GUITAR_V2\dataset3\audio\pathetique_mono.wav')
 # path_to_wav_file = os.path.join(DATA_DIR, r'IDMT-SMT-GUITAR_V2\dataset3\audio\nocturneNr2.wav')
 path_to_wav_file = os.path.join(DATA_DIR, r'recordings\audio\mim-riff1-short-slow.wav')
+# path_to_wav_file = os.path.join(DATA_DIR, r'generated\audio\generated_mono_mono.wav')
 
 # tempo = None
 tempo = 49
@@ -43,7 +44,7 @@ tuning = (64, 59, 55, 50, 45, 40)
 n_frets = 24
 
 # PIPELINE
-onset_detector = CnnOnsetDetector.from_zip('../models/onset_detection/20170601-3-channels_ds1-4_80-perc_adjusted-labels_with_config.zip')
+onset_detector = CnnOnsetDetector.from_zip('../models/onset_detection/20170627-3-channels_ds1-4_80-perc_adjusted-labels_with_config_thresh-0.05.zip')
 onset_times_seconds = onset_detector.predict_onsets(path_to_wav_file)
 
 pitch_detector = CnnPitchDetector.from_zip('../models/pitch_detection/20170621_1618_audio_effects_mono_plus_ds1-3_80-perc.zip')

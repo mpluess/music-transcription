@@ -9,6 +9,7 @@ import re
 
 from music_transcription.fileformat.guitar_pro.gp5_writer import write_gp5
 from music_transcription.fileformat.guitar_pro.utils import beat, Measure, note, Track
+from music_transcription.fileformat.truth import write_truth_file
 from music_transcription.string_fret_detection import plausibility
 
 TUNING = (64, 59, 55, 50, 45, 40)
@@ -16,9 +17,9 @@ N_FRETS = 24
 MIN_PITCH = min(TUNING)
 MAX_PITCH = max(TUNING) + N_FRETS
 
+START_OFFSET_SECONDS = 0.03
 
-def create_measure():
-    return [([], [])]
+GP5_ENDING_REGEX = re.compile(r'\.gp5$')
 
 
 def get_string_fret_possibilities(pitch):
@@ -27,7 +28,7 @@ def get_string_fret_possibilities(pitch):
             yield string, pitch - string_pitch
 
 
-def generate_mono(filename='generated_mono.gp5'):
+def generate_mono(filename='generated_mono.gp5', tempo=120):
     tracks = [
         Track(
             "Electric Guitar",
@@ -37,6 +38,10 @@ def generate_mono(filename='generated_mono.gp5'):
     ]
     measures = []
     beats = []
+    onset_times = []
+    list_of_pitches = []
+    onset_time = START_OFFSET_SECONDS
+    quarter_note_seconds = 60 / tempo
     for pitch in range(MIN_PITCH, MAX_PITCH + 1):
         for string, fret in get_string_fret_possibilities(pitch):
             print('pitch={}, string={}, fret={}'.format(pitch, string, fret))
@@ -48,24 +53,30 @@ def generate_mono(filename='generated_mono.gp5'):
 
             beats_measure = create_measure()
             beats_measure[0][0].append(beat([None] * 7, pause=True))
+            onset_time += quarter_note_seconds
 
             notes = [None] * 7
             notes[string] = note(fret)
             beats_measure[0][0].append(beat(notes))
+            onset_times.append(onset_time)
+            list_of_pitches.append([pitch])
+            onset_time += quarter_note_seconds
 
             beats_measure[0][0].append(beat([None] * 7, pause=True))
+            onset_time += quarter_note_seconds
             beats_measure[0][0].append(beat([None] * 7, pause=True))
+            onset_time += quarter_note_seconds
             beats.append(beats_measure)
 
     path_to_gp5_file = os.path.join(r'..\tmp', filename)
-    write_gp5(measures, tracks, beats, outfile=path_to_gp5_file)
+    write_gp5(measures, tracks, beats, tempo=tempo, outfile=path_to_gp5_file)
+    path_to_truth_file = os.path.join(r'..\tmp', GP5_ENDING_REGEX.sub('', filename) + '.xml')
+    write_truth_file([path_to_truth_file], [onset_times], [list_of_pitches])
 
 
-def generate_poly(chord_type, filename='generated_poly.gp5', n_measures_per_file=10000):
-    gp5_ending_regex = re.compile(r'\.gp5$')
-
+def generate_poly(chord_type, filename='generated_poly.gp5', n_measures_per_file=10000, tempo=120):
     files = []
-    tracks, measures, beats = create_tracks_measures_beats()
+    tracks, measures, beats, onset_times, list_of_pitches, onset_time = init_file()
 
     # chords with 2 pitches
     if chord_type == 2:
@@ -74,11 +85,14 @@ def generate_poly(chord_type, filename='generated_poly.gp5', n_measures_per_file
                 if pitch_1 != pitch_2:
                     possibilities = plausibility.get_all_fret_possibilities((pitch_1, pitch_2), tuning=TUNING, n_frets=N_FRETS)
                     if len(possibilities) > 0:
-                        measure, beats_measure, printable_notes = create_measure_beats_measure_printable_notes(
-                            len(measures), possibilities[0]
+                        measure, beats_measure, onset_after_seconds, measure_duration_seconds, printable_notes = create_measure_beats_measure_printable_notes(
+                            len(measures), possibilities[0], tempo
                         )
                         measures.append(measure)
                         beats.append(beats_measure)
+                        onset_times.append(onset_time + onset_after_seconds)
+                        onset_time += measure_duration_seconds
+                        list_of_pitches.append([pitch_1, pitch_2])
                         print('pitch_1={}, pitch_2={}, notes={}'.format(
                             pitch_1, pitch_2, printable_notes
                         ))
@@ -87,9 +101,9 @@ def generate_poly(chord_type, filename='generated_poly.gp5', n_measures_per_file
                             if len(files) == 0:
                                 current_filename = filename
                             else:
-                                current_filename = gp5_ending_regex.sub('', filename) + '.' + str(len(files)) + '.gp5'
-                            files.append((current_filename, measures, tracks, beats))
-                            tracks, measures, beats = create_tracks_measures_beats()
+                                current_filename = GP5_ENDING_REGEX.sub('', filename) + '.' + str(len(files)) + '.gp5'
+                            files.append((current_filename, measures, tracks, beats, onset_times, list_of_pitches))
+                            tracks, measures, beats, onset_times, list_of_pitches, onset_time = init_file()
 
     # chords with 3 pitches
     elif chord_type == 3:
@@ -100,11 +114,14 @@ def generate_poly(chord_type, filename='generated_poly.gp5', n_measures_per_file
                         possibilities = plausibility.get_all_fret_possibilities((pitch_1, pitch_2, pitch_3),
                                                                                 tuning=TUNING, n_frets=N_FRETS)
                         if len(possibilities) > 0:
-                            measure, beats_measure, printable_notes = create_measure_beats_measure_printable_notes(
-                                len(measures), possibilities[0]
+                            measure, beats_measure, onset_after_seconds, measure_duration_seconds, printable_notes = create_measure_beats_measure_printable_notes(
+                                len(measures), possibilities[0], tempo
                             )
                             measures.append(measure)
                             beats.append(beats_measure)
+                            onset_times.append(onset_time + onset_after_seconds)
+                            onset_time += measure_duration_seconds
+                            list_of_pitches.append([pitch_1, pitch_2, pitch_3])
                             print('pitch_1={}, pitch_2={}, pitch_3={}, notes={}'.format(
                                 pitch_1, pitch_2, pitch_3, printable_notes
                             ))
@@ -113,9 +130,9 @@ def generate_poly(chord_type, filename='generated_poly.gp5', n_measures_per_file
                                 if len(files) == 0:
                                     current_filename = filename
                                 else:
-                                    current_filename = gp5_ending_regex.sub('', filename) + '.' + str(len(files)) + '.gp5'
-                                files.append((current_filename, measures, tracks, beats))
-                                tracks, measures, beats = create_tracks_measures_beats()
+                                    current_filename = GP5_ENDING_REGEX.sub('', filename) + '.' + str(len(files)) + '.gp5'
+                                files.append((current_filename, measures, tracks, beats, onset_times, list_of_pitches))
+                                tracks, measures, beats, onset_times, list_of_pitches, onset_time = init_file()
 
     # chords with 4 pitches
     elif chord_type == 4:
@@ -129,11 +146,14 @@ def generate_poly(chord_type, filename='generated_poly.gp5', n_measures_per_file
                             possibilities = plausibility.get_all_fret_possibilities((pitch_1, pitch_2, pitch_3, pitch_4),
                                                                                     tuning=TUNING, n_frets=N_FRETS)
                             if len(possibilities) > 0:
-                                measure, beats_measure, printable_notes = create_measure_beats_measure_printable_notes(
-                                    len(measures), possibilities[0]
+                                measure, beats_measure, onset_after_seconds, measure_duration_seconds, printable_notes = create_measure_beats_measure_printable_notes(
+                                    len(measures), possibilities[0], tempo
                                 )
                                 measures.append(measure)
                                 beats.append(beats_measure)
+                                onset_times.append(onset_time + onset_after_seconds)
+                                onset_time += measure_duration_seconds
+                                list_of_pitches.append([pitch_1, pitch_2, pitch_3, pitch_4])
                                 print('pitch_1={}, pitch_2={}, pitch_3={}, pitch_4={}, notes={}'.format(
                                     pitch_1, pitch_2, pitch_3, pitch_4, printable_notes
                                 ))
@@ -142,33 +162,40 @@ def generate_poly(chord_type, filename='generated_poly.gp5', n_measures_per_file
                                     if len(files) == 0:
                                         current_filename = filename
                                     else:
-                                        current_filename = gp5_ending_regex.sub('', filename) + '.' + str(len(files)) + '.gp5'
-                                    files.append((current_filename, measures, tracks, beats))
-                                    tracks, measures, beats = create_tracks_measures_beats()
+                                        current_filename = GP5_ENDING_REGEX.sub('', filename) + '.' + str(len(files)) + '.gp5'
+                                    files.append((current_filename, measures, tracks, beats, onset_times, list_of_pitches))
+                                    tracks, measures, beats, onset_times, list_of_pitches, onset_time = init_file()
+
+    else:
+        raise ValueError('Unsupported chord type {}'.format(chord_type))
 
     if len(measures) > 0:
         if len(files) == 0:
             current_filename = filename
         else:
-            current_filename = gp5_ending_regex.sub('', filename) + '.' + str(len(files)) + '.gp5'
-        files.append((current_filename, measures, tracks, beats))
+            current_filename = GP5_ENDING_REGEX.sub('', filename) + '.' + str(len(files)) + '.gp5'
+        files.append((current_filename, measures, tracks, beats, onset_times, list_of_pitches))
 
-    for filename, measures, tracks, beats in files:
+    for filename, measures, tracks, beats, onset_times, list_of_pitches in files:
         path_to_gp5_file = os.path.join(r'..\tmp', filename)
-        write_gp5(measures, tracks, beats, outfile=path_to_gp5_file)
+        write_gp5(measures, tracks, beats, tempo=tempo, outfile=path_to_gp5_file)
+        path_to_truth_file = os.path.join(r'..\tmp', GP5_ENDING_REGEX.sub('', filename) + '.xml')
+        write_truth_file([path_to_truth_file], [onset_times], [list_of_pitches])
 
 
-def create_tracks_measures_beats():
+def init_file():
     return [
         Track(
             "Electric Guitar",
             len(TUNING), TUNING + (-1,),
             1, 1, 2, N_FRETS, 0, (200, 55, 55, 0), 27
         ),
-    ], [], []
+    ], [], [], [], [], START_OFFSET_SECONDS
 
 
-def create_measure_beats_measure_printable_notes(len_measures, notes):
+def create_measure_beats_measure_printable_notes(len_measures, notes, tempo):
+    quarter_note_seconds = 60 / tempo
+
     if len_measures == 0:
         measure = Measure(4, 4, False, 0, 0, "", (0, 0, 0, 0), 0, 0, False, (2, 2, 2, 2), 0)
     else:
@@ -186,11 +213,19 @@ def create_measure_beats_measure_printable_notes(len_measures, notes):
     beats_measure[0][0].append(beat([None] * 7, pause=True))
     beats_measure[0][0].append(beat([None] * 7, pause=True))
 
-    return measure, beats_measure, [None if my_note is None else my_note.fret for my_note in notes]
+    onset_after_seconds = quarter_note_seconds
+    measure_duration_seconds = 4*quarter_note_seconds
 
-generate_mono()
-generate_poly(2, filename='generated_poly_2.gp5')
-generate_poly(3, filename='generated_poly_3.gp5')
-# generate_poly(4, filename='generated_poly_4.gp5')
+    return (measure, beats_measure, onset_after_seconds, measure_duration_seconds,
+            [None if my_note is None else my_note.fret for my_note in notes])
+
+
+def create_measure():
+    return [([], [])]
+
+# generate_mono()
+# generate_poly(2, filename='generated_poly_2.gp5')
+# generate_poly(3, filename='generated_poly_3.gp5')
+generate_poly(4, filename='generated_poly_4.gp5')
 # generate_poly(5, filename='generated_poly_5.gp5')
 # generate_poly(6, filename='generated_poly_6.gp5')

@@ -145,6 +145,7 @@ def calc_poly_pitches(pitch, poly_id):
         raise ValueError('Invalid poly_id {}'.format(poly_id))
 
 
+# TODO Refactor to music_transcription.fileformat.truth.write_truth_file
 def write_truth_file(path_to_truth_file, pitches, onset_time):
     with open(path_to_truth_file, 'w') as f:
         f.write('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n')

@@ -9,21 +9,25 @@ from music_transcription.pitch_detection.read_data import get_wav_and_truth_file
 # active_datasets = {1, 2, 3, 6}
 # active_datasets = {7}
 # active_datasets = {1, 2, 3, 6, 7}
-active_datasets = {1}
+# active_datasets = {1}
+active_datasets = {8}
 
 wav_file_paths, truth_dataset_format_tuples = get_wav_and_truth_files(active_datasets)
 
-(
-    wav_file_paths_train, wav_file_paths_test,
-    truth_dataset_format_tuples_train, truth_dataset_format_tuples_test
-) = train_test_split(
-    wav_file_paths, truth_dataset_format_tuples, test_size=0.2, random_state=42
-)
+# (
+#     wav_file_paths_train, wav_file_paths_test,
+#     truth_dataset_format_tuples_train, truth_dataset_format_tuples_test
+# ) = train_test_split(
+#     wav_file_paths, truth_dataset_format_tuples, test_size=0.2, random_state=42
+# )
+
+wav_file_paths_train = wav_file_paths
+truth_dataset_format_tuples_train = truth_dataset_format_tuples
 
 # pitch_detector = CnnPitchDetector()
 pitch_detector = CnnCqtPitchDetector()
 pitch_detector.fit(
     wav_file_paths_train, truth_dataset_format_tuples_train,
-    wav_file_paths_test, truth_dataset_format_tuples_test,
+    # wav_file_paths_test, truth_dataset_format_tuples_test,
 )
-# pitch_detector.save('../models/pitch_detection/20170629_1443_cqt_audio_effects_poly_80-perc_onset-group-thresh-0.05.zip')
+pitch_detector.save('../models/pitch_detection/20170706_1055_cqt_generated_mono_poly23_100-perc.zip')

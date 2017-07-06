@@ -24,6 +24,8 @@ DATASET_CORRECTIONS = {
     6: 0.0,
     # IDMT-SMT-AUDIO-EFFECTS polyphonic
     7: 0.0,
+    # generated
+    8: 0.0,
 }
 
 
@@ -37,7 +39,7 @@ def get_wav_and_truth_files(active_datasets):
     wav_file_paths: List of wave file paths
     truth_dataset_format_tuples: List of tuples (path_to_truth_file, dataset, format)
 
-    dataset labels: one of 1, 2, 3, 4, 5, 6, 7
+    dataset labels: one of 1, 2, 3, 4, 5, 6, 7, 8
     truth formats: one of 'csv', 'xml'
     """
 
@@ -84,6 +86,12 @@ def get_wav_and_truth_files(active_datasets):
                 os.path.join(path_to_ds, 'annotation', effect_desc),
                 7,
             ))
+    if 8 in active_datasets:
+        dir_tuples.append((
+            os.path.join(DATA_DIR, r'generated\audio'),
+            os.path.join(DATA_DIR, r'generated\annotation'),
+            8,
+        ))
 
     wav_file_paths = []
     truth_dataset_format_tuples = []

@@ -84,6 +84,7 @@ def read_pitches(root_dir):
     return pitches
 
 
+# TODO Refactor to music_transcription.fileformat.truth.write_truth_file
 def write_truth_file(path_to_truth_file, pitch, onset_time):
     with open(path_to_truth_file, 'w') as f:
         f.write('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n')

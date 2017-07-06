@@ -4,21 +4,21 @@ from sklearn.model_selection import train_test_split
 
 from music_transcription.pitch_detection.read_data import get_wav_and_truth_files, read_data_y
 
-# # active_datasets = {1, 2, 3}
-# # active_datasets = {1, 2}
+active_datasets = {1, 2, 3}
+# active_datasets = {1, 2}
 # active_datasets = {6}
-# # active_datasets = {1, 2, 3, 6}
-# # active_datasets = {7}
-# wav_file_paths, truth_dataset_format_tuples = get_wav_and_truth_files(active_datasets)
-# (
-#     wav_file_paths_train, wav_file_paths_test,
-#     truth_dataset_format_tuples_train, truth_dataset_format_tuples_test
-# ) = train_test_split(
-#     wav_file_paths, truth_dataset_format_tuples, test_size=0.2, random_state=42
-# )
+# active_datasets = {1, 2, 3, 6}
+# active_datasets = {7}
+wav_file_paths, truth_dataset_format_tuples = get_wav_and_truth_files(active_datasets)
+(
+    wav_file_paths_train, wav_file_paths_test,
+    truth_dataset_format_tuples_train, truth_dataset_format_tuples_test
+) = train_test_split(
+    wav_file_paths, truth_dataset_format_tuples, test_size=0.2, random_state=42
+)
 
-active_datasets = {5}
-wav_file_paths_test, truth_dataset_format_tuples_test = get_wav_and_truth_files(active_datasets)
+# active_datasets = {5}
+# wav_file_paths_test, truth_dataset_format_tuples_test = get_wav_and_truth_files(active_datasets)
 
 # wav_file_paths_test = [r'..\data\IDMT-SMT-GUITAR_V2\dataset3\audio\nocturneNr2.wav']
 # truth_dataset_format_tuples_test = [(r'..\data\IDMT-SMT-GUITAR_V2\dataset3\annotation\nocturneNr2.xml', 3, 'xml')]
@@ -46,7 +46,7 @@ assert len(wav_file_paths_test) == len(data_test[1])
 # assert onset_group_threshold_seconds == pitch_detector.config['onset_group_threshold_seconds']
 
 from music_transcription.pitch_detection.cnn_cqt_pitch_detection import CnnCqtPitchDetector
-pitch_detector = CnnCqtPitchDetector.from_zip('../models/pitch_detection/20170704_1029_cqt_ds12-cv_ds367-additional_onset-group-thresh-0.05_20-filters_sample-weights_fold-0.zip')
+pitch_detector = CnnCqtPitchDetector.from_zip('../models/pitch_detection/20170706_1033_cqt_generated_mono_100-perc.zip')
 assert sample_rate == pitch_detector.feature_extractor.sample_rate
 assert subsampling_step == pitch_detector.config['subsampling_step']
 assert min_pitch == pitch_detector.config['min_pitch']

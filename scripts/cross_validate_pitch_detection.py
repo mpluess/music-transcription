@@ -38,7 +38,8 @@ def predict(pitch_detector, wav_file_paths, truth_dataset_format_tuples,
 DATASETS_CV = {1, 2}
 # DATASETS_ADDITIONAL = {3}
 # DATASETS_ADDITIONAL = {3, 6}
-DATASETS_ADDITIONAL = {3, 6, 7}
+# DATASETS_ADDITIONAL = {3, 6, 7}
+DATASETS_ADDITIONAL = {8}
 
 sample_rate = 44100
 subsampling_step = 1
