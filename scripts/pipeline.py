@@ -17,7 +17,7 @@ from music_transcription.beat_conversion.simple_beat_conversion import SimpleBea
 from music_transcription.fileformat.guitar_pro.utils import Header, Measure, Track
 from music_transcription.fileformat.guitar_pro.gp5_writer import write_gp5
 from music_transcription.onset_detection.cnn_onset_detection import CnnOnsetDetector
-from music_transcription.pitch_detection.cnn_pitch_detection import CnnPitchDetector
+from music_transcription.pitch_detection.cnn_cqt_pitch_detection import CnnCqtPitchDetector
 from music_transcription.string_fret_detection.simple_string_fret_detection import SimpleStringFretDetection
 
 # CONFIG
@@ -25,11 +25,17 @@ DATA_DIR = r'..\data'
 
 # path_to_wav_file = os.path.join(DATA_DIR, r'IDMT-SMT-GUITAR_V2\dataset3\audio\pathetique_mono.wav')
 # path_to_wav_file = os.path.join(DATA_DIR, r'IDMT-SMT-GUITAR_V2\dataset3\audio\nocturneNr2.wav')
-path_to_wav_file = os.path.join(DATA_DIR, r'recordings\audio\mim-riff1-short-slow.wav')
+# path_to_wav_file = os.path.join(DATA_DIR, r'recordings\audio\mim-riff1-short-slow.wav')
+path_to_wav_file = os.path.join(DATA_DIR, r'recordings\audio\instrumental_rythm_ok_short.wav')
 # path_to_wav_file = os.path.join(DATA_DIR, r'generated\audio\generated_mono_mono.wav')
 
 # tempo = None
-tempo = 49
+
+# mim
+# tempo = 49
+
+# instrumental
+tempo = 144
 
 # Standard tuning:
 # string / fret
@@ -47,7 +53,7 @@ n_frets = 24
 onset_detector = CnnOnsetDetector.from_zip('../models/onset_detection/20170627-3-channels_ds1-4_80-perc_adjusted-labels_with_config_thresh-0.05.zip')
 onset_times_seconds = onset_detector.predict_onsets(path_to_wav_file)
 
-pitch_detector = CnnPitchDetector.from_zip('../models/pitch_detection/20170621_1618_audio_effects_mono_plus_ds1-3_80-perc.zip')
+pitch_detector = CnnCqtPitchDetector.from_zip('../models/pitch_detection/20170706_1148_cqt_ds1-3_80-perc.zip')
 list_of_pitch_sets = pitch_detector.predict_pitches(path_to_wav_file, onset_times_seconds)
 
 string_fret_detector = SimpleStringFretDetection(tuning, n_frets)

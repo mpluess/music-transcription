@@ -39,7 +39,7 @@ DATASETS_CV = {1, 2}
 # DATASETS_ADDITIONAL = {3}
 # DATASETS_ADDITIONAL = {3, 6}
 # DATASETS_ADDITIONAL = {3, 6, 7}
-DATASETS_ADDITIONAL = {8}
+DATASETS_ADDITIONAL = {3, 9, 10, 11}
 
 sample_rate = 44100
 subsampling_step = 1
@@ -75,4 +75,4 @@ for k, (train_indices, test_indices) in enumerate(k_fold.split(wav_file_paths_cv
     predict(pitch_detector, wav_file_paths_test, truth_dataset_format_tuples_test,
             sample_rate, subsampling_step, min_pitch, max_pitch, onset_group_threshold_seconds)
 
-    pitch_detector.save('../models/pitch_detection/20170704_1029_cqt_ds12-cv_ds367-additional_onset-group-thresh-0.05_20-filters_sample-weights_fold-' + str(k) + '.zip')
+    pitch_detector.save('../models/pitch_detection/20170706_1644_cqt_ds12-cv_ds391011-additional_onset-group-thresh-0.05_20-filters_fold-' + str(k) + '.zip')
