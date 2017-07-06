@@ -34,4 +34,4 @@ X_train = feature_extractor.fit_transform(data_train)"""
 cnn_string_detector = CnnStringDetector()
 cnn_string_detector.fit(wav_file_paths_train, truth_dataset_format_tuples_train,
                         wav_file_paths_test, truth_dataset_format_tuples_test)
-pitch_detector.save('../models/string_detection/20170706_1640_ds1.zip')
+cnn_string_detector.save('../models/string_detection/20170706_1640_ds1.zip')
