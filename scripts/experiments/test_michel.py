@@ -73,6 +73,6 @@
 #     [(0, 1, 0), (0, 2, 0), (0, 4, 0)]
 # ))
 
-import re
-p = re.compile(r'\.gp5$')
-print(p.sub('', 'gp.gp5'))
+# import re
+# p = re.compile(r'\.gp5$')
+# print(p.sub('', 'gp.gp5'))

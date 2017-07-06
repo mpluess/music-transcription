@@ -4,6 +4,19 @@ from sklearn.model_selection import train_test_split
 
 from music_transcription.pitch_detection.read_data import get_wav_and_truth_files, read_data_y
 
+
+def predict_print_metrics(pitch_detector_, wav_file_paths_, list_of_onset_times_, y_, min_pitch_, max_pitch_):
+    y_predicted_parts = []
+    for path_to_wav, onset_times_seconds in zip(wav_file_paths_, list_of_onset_times_):
+        y_predicted_parts.append(pitch_detector_.predict(path_to_wav, onset_times_seconds))
+    y_predicted = np.concatenate(y_predicted_parts)
+    assert y_.shape == y_predicted.shape
+
+    # Print metrics
+    print('Accuracy: {}'.format(sklearn.metrics.accuracy_score(y_, y_predicted)))
+    print(sklearn.metrics.classification_report(y_, y_predicted,
+                                                target_names=[str(pitch) for pitch in range(min_pitch_, max_pitch_ + 1)]))
+
 active_datasets = {1, 2, 3}
 # active_datasets = {1, 2}
 # active_datasets = {6}
@@ -46,7 +59,7 @@ assert len(wav_file_paths_test) == len(data_test[1])
 # assert onset_group_threshold_seconds == pitch_detector.config['onset_group_threshold_seconds']
 
 from music_transcription.pitch_detection.cnn_cqt_pitch_detection import CnnCqtPitchDetector
-pitch_detector = CnnCqtPitchDetector.from_zip('../models/pitch_detection/20170706_1033_cqt_generated_mono_100-perc.zip')
+pitch_detector = CnnCqtPitchDetector.from_zip('../models/pitch_detection/20170706_1148_cqt_ds1-3_80-perc.zip')
 assert sample_rate == pitch_detector.feature_extractor.sample_rate
 assert subsampling_step == pitch_detector.config['subsampling_step']
 assert min_pitch == pitch_detector.config['min_pitch']
@@ -57,16 +70,13 @@ assert onset_group_threshold_seconds == pitch_detector.config['onset_group_thres
 # pitch_detector = AubioPitchDetector()
 
 # Predict
-y_test_predicted_parts = []
-for path_to_wav, onset_times_seconds in zip(wav_file_paths_test, data_test[1]):
-    y_test_predicted_parts.append(pitch_detector.predict(path_to_wav, onset_times_seconds))
-y_test_predicted = np.concatenate(y_test_predicted_parts)
-assert y_test.shape == y_test_predicted.shape
+# predict_print_metrics(pitch_detector, wav_file_paths_test, data_test[1], y_test, min_pitch, max_pitch)
 
-# Print metrics
-print('Accuracy: {}'.format(sklearn.metrics.accuracy_score(y_test, y_test_predicted)))
-print(sklearn.metrics.classification_report(y_test, y_test_predicted,
-                                            target_names=[str(pitch) for pitch in range(min_pitch, max_pitch + 1)]))
+# proba_threshold
+for proba_threshold in [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]:
+    pitch_detector.config['proba_threshold'] = proba_threshold
+    print(proba_threshold)
+    predict_print_metrics(pitch_detector, wav_file_paths_test, data_test[1], y_test, min_pitch, max_pitch)
 
 
 # Verbose / confusion
