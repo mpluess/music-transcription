@@ -244,7 +244,7 @@ class CnnStringDetector(AbstractStringDetector):
 
         self.model = self._create_model(self.n_input_samples, self.config['strings'])
 
-        self.model.fit(X_train, y_train, epochs=10, batch_size=self.BATCH_SIZE,
+        self.model.fit(X_train, y_train, epochs=1000, batch_size=self.BATCH_SIZE,
                        callbacks=[EarlyStopping(monitor=monitor, patience=6)],
                        verbose=2, validation_data=validation_data)
 
