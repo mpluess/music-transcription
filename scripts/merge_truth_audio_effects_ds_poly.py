@@ -4,6 +4,9 @@ from os.path import isdir, isfile, join
 from warnings import warn
 from xml.etree import ElementTree
 
+from music_transcription.fileformat.truth import write_truth_file
+from music_transcription.string_fret_detection.plausibility import get_all_fret_possibilities
+
 
 def merge_truth(root_dir):
     pitches = read_pitches(root_dir)
@@ -30,9 +33,9 @@ def merge_truth(root_dir):
                                         warn('No onset available for {}'.format(path_to_wav_file))
                                     else:
                                         write_truth_file(
-                                            join(path_to_dataset_part, 'annotation', fx_folder, file_id + '.xml'),
-                                            pitches[dataset_part][fx_folder][file_id],
-                                            onset_time
+                                            [join(path_to_dataset_part, 'annotation', fx_folder, file_id + '.xml')],
+                                            [[onset_time]],
+                                            [[pitches[dataset_part][fx_folder][file_id]]]
                                         )
                                         n_files_written += 1
                                 else:
@@ -89,7 +92,9 @@ def read_pitches(root_dir):
                                         elif int(polytype) < 1 or int(polytype) > 7:
                                             warn('Invalid polytype {} in {}'.format(polytype, path_to_xml_file))
                                         else:
-                                            pitches[dataset_part][fx_folder][file_id] = calc_poly_pitches(pitch, polysort + polytype)
+                                            file_pitches = calc_poly_pitches(pitch, polysort + polytype)
+                                            assert len(get_all_fret_possibilities([int(p) for p in file_pitches])) > 0
+                                            pitches[dataset_part][fx_folder][file_id] = file_pitches
                             else:
                                 warn('Not an XML file: {}'.format(path_to_xml_file))
                     else:
@@ -110,9 +115,9 @@ def calc_poly_pitches(pitch, poly_id):
     # 22 - Moll - Dreiklang - +3, +7
     # 23 - Sus4 - Dreiklang - +5, +7
     # 24 - Power Chord - +7, +12
-    # 25 - Grosser Durseptimenakkord - +4, +7, +11
-    # 26 - Kleiner Durseptimenakkord - +4, +7, +10
-    # 27 - Kleiner Mollseptimenakkord - +3, +7, +10
+    # 25 - Grosser Durseptimenakkord - +7, +11, +16 (changed from +4 to +16 since this is what's actually played)
+    # 26 - Kleiner Durseptimenakkord - +7, +10, +16 (changed from +4 to +16 since this is what's actually played)
+    # 27 - Kleiner Mollseptimenakkord - +7, +10, +15 (changed from +3 to +15 since this is what's actually played)
     if poly_id == '11':
         return pitch, str(int(pitch) + 3)
     elif poly_id == '12':
@@ -136,29 +141,18 @@ def calc_poly_pitches(pitch, poly_id):
     elif poly_id == '24':
         return pitch, str(int(pitch) + 7), str(int(pitch) + 12)
     elif poly_id == '25':
-        return pitch, str(int(pitch) + 4), str(int(pitch) + 7), str(int(pitch) + 11)
+        return pitch, str(int(pitch) + 7), str(int(pitch) + 11), str(int(pitch) + 16)
     elif poly_id == '26':
-        return pitch, str(int(pitch) + 4), str(int(pitch) + 7), str(int(pitch) + 10)
+        return pitch, str(int(pitch) + 7), str(int(pitch) + 10), str(int(pitch) + 16)
     elif poly_id == '27':
-        return pitch, str(int(pitch) + 3), str(int(pitch) + 7), str(int(pitch) + 10)
+        return pitch, str(int(pitch) + 7), str(int(pitch) + 10), str(int(pitch) + 15)
     else:
         raise ValueError('Invalid poly_id {}'.format(poly_id))
 
-
-# TODO Refactor to music_transcription.fileformat.truth.write_truth_file
-def write_truth_file(path_to_truth_file, pitches, onset_time):
-    with open(path_to_truth_file, 'w') as f:
-        f.write('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n')
-        f.write('<instrumentRecording>\n')
-        f.write('  <globalParameter></globalParameter>\n')
-        f.write('  <transcription>\n')
-        for pitch in pitches:
-            f.write('    <event>\n')
-            f.write('      <pitch>{}</pitch>\n'.format(pitch))
-            f.write('      <onsetSec>{}</onsetSec>\n'.format(onset_time))
-            f.write('    </event>\n')
-        f.write('  </transcription>\n')
-        f.write('</instrumentRecording>\n')
-
 root_dir = '../data/IDMT-SMT-AUDIO-EFFECTS'
 merge_truth(root_dir)
+
+# pitches = read_pitches(root_dir)
+# for file_id, notes in pitches['Gitarre polyphon']['NoFX'].items():
+#     if len(get_all_fret_possibilities([int(n) for n in notes])) == 0:
+#         print(file_id)

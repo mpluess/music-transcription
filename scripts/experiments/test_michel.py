@@ -76,3 +76,61 @@
 # import re
 # p = re.compile(r'\.gp5$')
 # print(p.sub('', 'gp.gp5'))
+
+class_distribution = {
+    0: 64,
+    1: 28,
+    2: 20,
+    3: 85,
+    4: 45,
+    5: 232,
+    6: 69,
+    7: 174,
+    8: 389,
+    9: 157,
+    10: 349,
+    11: 109,
+    12: 404,
+    13: 188,
+    14: 331,
+    15: 339,
+    16: 263,
+    17: 372,
+    18: 140,
+    19: 450,
+    20: 251,
+    21: 363,
+    22: 359,
+    23: 104,
+    24: 373,
+    25: 120,
+    26: 141,
+    27: 210,
+    28: 66,
+    29: 249,
+    30: 56,
+    31: 65,
+    32: 71,
+    33: 45,
+    34: 79,
+    35: 21,
+    36: 21,
+    37: 66,
+    38: 79,
+    39: 67,
+    40: 43,
+    41: 43,
+    42: 43,
+    43: 49,
+    44: 26,
+    45: 23,
+    46: 23,
+    47: 23,
+    48: 26,
+}
+min_value = min(class_distribution.values())
+class_distribution_normalized = {k: v / min_value for k, v in class_distribution.items()}
+print('{')
+for k, v in sorted(class_distribution_normalized.items(), key=lambda t: t[0]):
+    print('    {}: {},'.format(k, v))
+print('}')

@@ -233,9 +233,9 @@ def create_measure_beats_measure_printable_notes(len_measures, notes, tempo):
 def create_measure():
     return [([], [])]
 
-pitches = set(range(41, 43)).union(set(range(75, 89)))
-# generate_mono(filename='generated_mono_filtered.gp5', pitches=pitches)
-# generate_poly(2, filename='generated_poly_2_filtered.gp5', pitches=pitches)
+pitches = set(range(77, 89))
+generate_mono(filename='generated_mono_filtered.gp5', pitches=pitches)
+generate_poly(2, filename='generated_poly_2_filtered.gp5', pitches=pitches)
 generate_poly(3, filename='generated_poly_3_filtered.gp5', pitches=pitches)
 # generate_poly(4, filename='generated_poly_4.gp5')
 # generate_poly(5, filename='generated_poly_5.gp5')

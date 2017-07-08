@@ -235,13 +235,68 @@ class CnnCqtPitchDetector(AbstractPitchDetector):
     #     },
     # ]
 
+    # Class distribution taken from analyze_pitches.py, overall for ds 1, 2, 3, 9, 10, 11, 8.7.17 16:05
+    # Multiplications: adjustments for underrepresented pitches.
+    # Didn't improve CV score though, no effect on the "bad" fold 2.
+    # class_distribution_for_weights={
+    #     0: 3.2,
+    #     1: 1.4 * 3,
+    #     2: 1.0 * 4,
+    #     3: 4.25,
+    #     4: 2.25 * 2,
+    #     5: 11.6,
+    #     6: 3.45 * 3,
+    #     7: 8.7,
+    #     8: 19.45,
+    #     9: 7.85 * 2,
+    #     10: 17.45,
+    #     11: 5.45 * 3,
+    #     12: 20.2,
+    #     13: 9.4 * 2,
+    #     14: 16.55,
+    #     15: 16.95,
+    #     16: 13.15 * 1.5,
+    #     17: 18.6,
+    #     18: 7.0 * 2,
+    #     19: 22.5,
+    #     20: 12.55 * 1.5,
+    #     21: 18.15,
+    #     22: 17.95,
+    #     23: 5.2 * 3,
+    #     24: 18.65,
+    #     25: 6.0 * 3,
+    #     26: 7.05 * 2,
+    #     27: 10.5,
+    #     28: 3.3 * 3,
+    #     29: 12.45,
+    #     30: 2.8 * 2,
+    #     31: 3.25 * 2,
+    #     32: 3.55 * 2,
+    #     33: 2.25 * 2,
+    #     34: 3.95,
+    #     35: 1.05 * 3,
+    #     36: 1.05 * 3,
+    #     37: 3.3,
+    #     38: 3.95,
+    #     39: 3.35,
+    #     40: 2.15,
+    #     41: 2.15,
+    #     42: 2.15,
+    #     43: 2.45,
+    #     44: 1.3,
+    #     45: 1.15,
+    #     46: 1.15,
+    #     47: 1.15,
+    #     48: 1.3,
+    # }
+
     def __init__(self,
                  # loaded config, feature extractor and model
                  config=None, feature_extractor=None, model=None,
 
                  # config params
                  tuning=(64, 59, 55, 50, 45, 40), n_frets=24, proba_threshold=0.5, onset_group_threshold_seconds=0.05,
-                 subsampling_step=1, sample_weights=None,
+                 subsampling_step=1, sample_weights=None, class_distribution_for_weights=None,
 
                  # feature extractor params
                  image_data_format='channels_first', sample_rate=44100, cqt_configs=None):
@@ -253,6 +308,7 @@ class CnnCqtPitchDetector(AbstractPitchDetector):
 
             assert sample_weights is None or sample_weights == 'balanced'
             self.config['sample_weights'] = sample_weights
+            self.config['class_distribution_for_weights'] = class_distribution_for_weights
         else:
             self.config = config
 
@@ -373,15 +429,35 @@ class CnnCqtPitchDetector(AbstractPitchDetector):
 
         self.model = self._create_model(list_of_X_train,
                                         self.config['max_pitch'] - self.config['min_pitch'] + 1)
+
         if self.config['sample_weights'] == 'balanced':
             sample_weights = self._get_sample_weights(sample_file_indexes_train,
                                                       truth_dataset_format_tuples_train_valid)
         else:
             sample_weights = None
+
+        if self.config['class_distribution_for_weights'] is not None:
+            print(y_train.shape)
+            class_distribution = {j: y_train[:, j].sum() for j in range(y_train.shape[1])}
+            print(class_distribution)
+            assert class_distribution.keys() == self.config['class_distribution_for_weights'].keys()
+
+            min_value = min(class_distribution.values())
+            class_distribution_normalized = {k: v / min_value for k, v in class_distribution.items()}
+            print(class_distribution_normalized)
+
+            class_weights = {
+                k: value_should / class_distribution_normalized[k]
+                for k, value_should in self.config['class_distribution_for_weights'].items()
+            }
+            print(class_weights)
+        else:
+            class_weights = None
         self.model.fit(list_of_X_train, y_train,
                        epochs=1000,
                        batch_size=self.BATCH_SIZE,
                        sample_weight=sample_weights,
+                       class_weight=class_weights,
                        callbacks=[EarlyStopping(monitor=monitor, patience=6)], verbose=2,
                        validation_data=validation_data)
 

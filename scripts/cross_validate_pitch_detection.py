@@ -52,9 +52,9 @@ wav_file_paths_additional, truth_dataset_format_tuples_additional = get_wav_and_
 
 k_fold = KFold(n_splits=5, shuffle=True, random_state=42)
 for k, (train_indices, test_indices) in enumerate(k_fold.split(wav_file_paths_cv)):
-    if k > 0:
-        print('Skipping split {}'.format(k))
-        continue
+    # if k > 0:
+    #     print('Skipping split {}'.format(k))
+    #     continue
 
     wav_file_paths_train = [wav_file_paths_cv[i] for i in train_indices] + wav_file_paths_additional
     truth_dataset_format_tuples_train = [truth_dataset_format_tuples_cv[i] for i in train_indices] + truth_dataset_format_tuples_additional
@@ -75,4 +75,4 @@ for k, (train_indices, test_indices) in enumerate(k_fold.split(wav_file_paths_cv
     predict(pitch_detector, wav_file_paths_test, truth_dataset_format_tuples_test,
             sample_rate, subsampling_step, min_pitch, max_pitch, onset_group_threshold_seconds)
 
-    pitch_detector.save('../models/pitch_detection/20170706_1644_cqt_ds12-cv_ds391011-additional_onset-group-thresh-0.05_20-filters_fold-' + str(k) + '.zip')
+    pitch_detector.save('../models/pitch_detection/20170708_1611_cqt_ds12-cv_ds391011-additional_onset-group-thresh-0.05_20-filters_poly-fixed-gen-77-88_class-weights_fold-' + str(k) + '.zip')
