@@ -211,7 +211,7 @@ class CnnCqtPitchDetector(AbstractPitchDetector):
             'scale': False,
         },
     ]
-    # CQT_CONFIGS_3_VARIANTS =[
+    # CQT_CONFIGS_3_VARIANTS = [
     #     {
     #         'hop_length': 256,
     #         'fmin': 55.0,
