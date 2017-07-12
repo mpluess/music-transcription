@@ -18,10 +18,12 @@ from music_transcription.pitch_detection.read_data import read_samples, read_dat
 
 
 class CnnCqtFeatureExtractor(BaseEstimator, TransformerMixin):
-    def __init__(self, image_data_format, sample_rate, cqt_configs):
+    def __init__(self, image_data_format, sample_rate, cqt_configs, n_frames_before, n_frames_after):
         self.image_data_format = image_data_format
         self.sample_rate = sample_rate
         self.cqt_configs = cqt_configs
+        self.n_frames_before = n_frames_before
+        self.n_frames_after = n_frames_after
 
         self.standard_scalers_per_X = None
 
@@ -145,7 +147,7 @@ class CnnCqtFeatureExtractor(BaseEstimator, TransformerMixin):
         return cqt_spectrogram
 
     def _get_X_around_onset_with_context(self, X, list_of_onset_times, n_frames_per_file, frame_rate_hz,
-                                         frames_before=5, frames_after=10, border_value=0.0):
+                                         border_value=0.0):
         """X = complete spectrogram"""
         n_samples = X.shape[0]
         assert n_samples == sum(n_frames_per_file)
@@ -167,23 +169,23 @@ class CnnCqtFeatureExtractor(BaseEstimator, TransformerMixin):
                 index = int(onset_time * frame_rate_hz)
                 assert index < n_frames
 
-                if n_frames - index - 1 < frames_after:
+                if n_frames - index - 1 < self.n_frames_after:
                     warn('Onset is too close to end of file ({} < {}), '
-                         'operation will add context from different file!'.format(n_frames - index - 1, frames_after))
+                         'operation will add context from different file!'.format(n_frames - index - 1, self.n_frames_after))
                 start_indices.append(start_index + index)
                 sample_file_indexes.append(i)
 
         n_onsets = len(start_indices)
         n_bins = X.shape[1]
-        X_new = np.empty((n_onsets, frames_before + 1 + frames_after, n_bins))
+        X_new = np.empty((n_onsets, self.n_frames_before + 1 + self.n_frames_after, n_bins))
         for i, start_index in enumerate(start_indices):
-            for offset in range(-frames_before, frames_after + 1):
+            for offset in range(-self.n_frames_before, self.n_frames_after + 1):
                 if start_index + offset > -1 and start_index + offset < n_samples:
                     # X_new 2nd dim: [0, frames_before+1+frames_after[
                     # X 1st dim: [start_index-frames_before, start_index+frames_after+1[
-                    X_new[i, offset + frames_before, :] = X[start_index + offset, :]
+                    X_new[i, offset + self.n_frames_before, :] = X[start_index + offset, :]
                 else:
-                    X_new[i, offset + frames_before].fill(border_value)
+                    X_new[i, offset + self.n_frames_before].fill(border_value)
 
         return X_new, sample_file_indexes
 
@@ -299,7 +301,8 @@ class CnnCqtPitchDetector(AbstractPitchDetector):
                  subsampling_step=1, sample_weights=None, class_distribution_for_weights=None,
 
                  # feature extractor params
-                 image_data_format='channels_first', sample_rate=44100, cqt_configs=None):
+                 image_data_format='channels_first', sample_rate=44100, cqt_configs=None,
+                 n_frames_before=15, n_frames_after=20):
         if config is None:
             super().__init__(tuning, n_frets)
             self.config['proba_threshold'] = proba_threshold
@@ -315,9 +318,8 @@ class CnnCqtPitchDetector(AbstractPitchDetector):
         if feature_extractor is None:
             if cqt_configs is None:
                 cqt_configs = CnnCqtPitchDetector.DEFAULT_CQT_CONFIGS
-            self.feature_extractor = CnnCqtFeatureExtractor(image_data_format,
-                                                            sample_rate,
-                                                            cqt_configs)
+            self.feature_extractor = CnnCqtFeatureExtractor(image_data_format, sample_rate, cqt_configs,
+                                                            n_frames_before, n_frames_after)
         else:
             self.feature_extractor = feature_extractor
 
