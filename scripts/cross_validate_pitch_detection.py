@@ -62,7 +62,7 @@ for k, (train_indices, test_indices) in enumerate(k_fold.split(wav_file_paths_cv
     truth_dataset_format_tuples_test = [truth_dataset_format_tuples_cv[i] for i in test_indices]
 
     # pitch_detector = CnnPitchDetector()
-    pitch_detector = CnnCqtPitchDetector()
+    pitch_detector = CnnCqtPitchDetector(proba_threshold=0.3)
     print('Fitting pitch detector')
     pitch_detector.fit(wav_file_paths_train, truth_dataset_format_tuples_train,
                        wav_file_paths_test, truth_dataset_format_tuples_test)
@@ -75,4 +75,4 @@ for k, (train_indices, test_indices) in enumerate(k_fold.split(wav_file_paths_cv
     predict(pitch_detector, wav_file_paths_test, truth_dataset_format_tuples_test,
             sample_rate, subsampling_step, min_pitch, max_pitch, onset_group_threshold_seconds)
 
-    pitch_detector.save('../models/pitch_detection/20170711_0901_cqt_ds12-cv_ds391011-additional_onset-group-thresh-0.05_20-filters_poly-fixed-gen-77-88_3-spec_fold-' + str(k) + '.zip')
+    # pitch_detector.save('../models/pitch_detection/20170711_0901_cqt_ds12-cv_ds391011-additional_onset-group-thresh-0.05_20-filters_poly-fixed-gen-77-88_3-spec_fold-' + str(k) + '.zip')

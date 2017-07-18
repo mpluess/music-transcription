@@ -25,17 +25,19 @@ DATA_DIR = r'..\data'
 
 # path_to_wav_file = os.path.join(DATA_DIR, r'IDMT-SMT-GUITAR_V2\dataset3\audio\pathetique_mono.wav')
 # path_to_wav_file = os.path.join(DATA_DIR, r'IDMT-SMT-GUITAR_V2\dataset3\audio\nocturneNr2.wav')
+path_to_wav_file = os.path.join(DATA_DIR, r'IDMT-SMT-GUITAR_V2\dataset4\Career SG\slow\reggae_ska\audio\reggae_1_95BPM.wav')
 # path_to_wav_file = os.path.join(DATA_DIR, r'recordings\audio\mim-riff1-short-slow.wav')
-path_to_wav_file = os.path.join(DATA_DIR, r'recordings\audio\instrumental_rythm_ok_short.wav')
+# path_to_wav_file = os.path.join(DATA_DIR, r'recordings\audio\instrumental_rythm_ok_short.wav')
+# path_to_wav_file = os.path.join(DATA_DIR, r'recordings\audio\instrumental_lead.wav')
 # path_to_wav_file = os.path.join(DATA_DIR, r'generated\audio\generated_mono_mono.wav')
 
-# tempo = None
+tempo = None
 
 # mim
 # tempo = 49
 
 # instrumental
-tempo = 144
+# tempo = 144
 
 # Standard tuning:
 # string / fret
@@ -53,7 +55,7 @@ n_frets = 24
 onset_detector = CnnOnsetDetector.from_zip('../models/onset_detection/20170627-3-channels_ds1-4_80-perc_adjusted-labels_with_config_thresh-0.05.zip')
 onset_times_seconds = onset_detector.predict_onsets(path_to_wav_file)
 
-pitch_detector = CnnCqtPitchDetector.from_zip('../models/pitch_detection/20170706_1148_cqt_ds1-3_80-perc.zip')
+pitch_detector = CnnCqtPitchDetector.from_zip('../models/pitch_detection/20170718_1224_cqt_ds12391011_100-perc_optimized-params_proba-thresh-0.3.zip')
 list_of_pitch_sets = pitch_detector.predict_pitches(path_to_wav_file, onset_times_seconds)
 
 string_fret_detector = SimpleStringFretDetection(tuning, n_frets)
@@ -80,7 +82,7 @@ tracks = [
     Track(
         "Electric Guitar",
         len(tuning), tuning + (-1,),
-        1, 1, 2, n_frets, 0, (200, 55, 55, 0), 30
+        1, 1, 2, n_frets, 0, (200, 55, 55, 0), 27
     ),
 ]
 

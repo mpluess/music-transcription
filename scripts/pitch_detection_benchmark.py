@@ -13,8 +13,8 @@ def predict_print_metrics(pitch_detector_, wav_file_paths_, list_of_onset_times_
     assert y_.shape == y_predicted.shape
 
     # Print metrics
-    print('Accuracy: {}'.format(sklearn.metrics.accuracy_score(y_, y_predicted)))
-    print(sklearn.metrics.classification_report(y_, y_predicted,
+    print('Accuracy: {}'.format(round(sklearn.metrics.accuracy_score(y_, y_predicted), 4)))
+    print(sklearn.metrics.classification_report(y_, y_predicted, digits=3,
                                                 target_names=[str(pitch) for pitch in range(min_pitch_, max_pitch_ + 1)]))
 
 # active_datasets = {1, 2, 3}
@@ -59,16 +59,16 @@ assert len(wav_file_paths_test) == len(data_test[1])
 # assert max_pitch == pitch_detector.config['max_pitch']
 # assert onset_group_threshold_seconds == pitch_detector.config['onset_group_threshold_seconds']
 
-# from music_transcription.pitch_detection.cnn_cqt_pitch_detection import CnnCqtPitchDetector
-# pitch_detector = CnnCqtPitchDetector.from_zip('../models/pitch_detection/20170706_1033_cqt_generated_mono_100-perc.zip')
-# assert sample_rate == pitch_detector.feature_extractor.sample_rate
-# assert subsampling_step == pitch_detector.config['subsampling_step']
-# assert min_pitch == pitch_detector.config['min_pitch']
-# assert max_pitch == pitch_detector.config['max_pitch']
-# assert onset_group_threshold_seconds == pitch_detector.config['onset_group_threshold_seconds']
+from music_transcription.pitch_detection.cnn_cqt_pitch_detection import CnnCqtPitchDetector
+pitch_detector = CnnCqtPitchDetector.from_zip('../models/pitch_detection/20170718_1224_cqt_ds12391011_100-perc_optimized-params_proba-thresh-0.3.zip')
+assert sample_rate == pitch_detector.feature_extractor.sample_rate
+assert subsampling_step == pitch_detector.config['subsampling_step']
+assert min_pitch == pitch_detector.config['min_pitch']
+assert max_pitch == pitch_detector.config['max_pitch']
+assert onset_group_threshold_seconds == pitch_detector.config['onset_group_threshold_seconds']
 
-from music_transcription.pitch_detection.aubio_pitch_detection import AubioPitchDetector
-pitch_detector = AubioPitchDetector()
+# from music_transcription.pitch_detection.aubio_pitch_detection import AubioPitchDetector
+# pitch_detector = AubioPitchDetector()
 
 # Predict
 predict_print_metrics(pitch_detector, wav_file_paths_test, data_test[1], y_test, min_pitch, max_pitch)

@@ -460,7 +460,7 @@ class CnnCqtPitchDetector(AbstractPitchDetector):
                        batch_size=self.BATCH_SIZE,
                        sample_weight=sample_weights,
                        class_weight=class_weights,
-                       callbacks=[EarlyStopping(monitor=monitor, patience=6)], verbose=2,
+                       callbacks=[EarlyStopping(monitor='loss', patience=6)], verbose=2,
                        validation_data=validation_data)
 
     @staticmethod
@@ -508,20 +508,24 @@ class CnnCqtPitchDetector(AbstractPitchDetector):
             spectrogram = Input(shape=X.shape[1:])
             inputs.append(spectrogram)
 
-            conv = Conv2D(20, (7, 3), padding='valid')(spectrogram)
+            conv = Conv2D(10, (10, 3), padding='valid')(spectrogram)
             conv = Activation('relu')(conv)
-            conv = MaxPooling2D(pool_size=(1, 3))(conv)
-            conv = Conv2D(20, (3, 3), padding='valid')(conv)
+            conv = MaxPooling2D(pool_size=(6, 3))(conv)
+            conv = Dropout(0.15)(conv)
+            conv = Flatten()(conv)
+            conv_blocks.append(conv)
+
+            conv = Conv2D(512, (10, 180), strides=(5, 1), padding='valid')(spectrogram)
             conv = Activation('relu')(conv)
-            conv = MaxPooling2D(pool_size=(1, 3))(conv)
+            conv = MaxPooling2D(pool_size=(2, 1))(conv)
             conv = Dropout(0.25)(conv)
             conv = Flatten()(conv)
             conv_blocks.append(conv)
 
-        z = Concatenate()(conv_blocks) if len(conv_blocks) > 1 else conv_blocks[0]
+        z = Concatenate()(conv_blocks)
         z = Dense(256)(z)
         z = Activation('relu')(z)
-        z = Dropout(0.5)(z)
+        z = Dropout(0.3)(z)
         output = Dense(n_output_units, activation='sigmoid')(z)
 
         model = Model(inputs, output)

@@ -4,30 +4,24 @@ from music_transcription.pitch_detection.cnn_pitch_detection import CnnPitchDete
 from music_transcription.pitch_detection.cnn_cqt_pitch_detection import CnnCqtPitchDetector
 from music_transcription.pitch_detection.read_data import get_wav_and_truth_files
 
-# active_datasets = {1, 2, 3}
-# active_datasets = {6}
-# active_datasets = {1, 2, 3, 6}
-# active_datasets = {7}
-# active_datasets = {1, 2, 3, 6, 7}
-active_datasets = {1}
-# active_datasets = {8}
+active_datasets = {1, 2, 3, 9, 10, 11}
 
 wav_file_paths, truth_dataset_format_tuples = get_wav_and_truth_files(active_datasets)
 
-(
-    wav_file_paths_train, wav_file_paths_test,
-    truth_dataset_format_tuples_train, truth_dataset_format_tuples_test
-) = train_test_split(
-    wav_file_paths, truth_dataset_format_tuples, test_size=0.2, random_state=42
-)
+# (
+#     wav_file_paths_train, wav_file_paths_test,
+#     truth_dataset_format_tuples_train, truth_dataset_format_tuples_test
+# ) = train_test_split(
+#     wav_file_paths, truth_dataset_format_tuples, test_size=0.2, random_state=42
+# )
 
-# wav_file_paths_train = wav_file_paths
-# truth_dataset_format_tuples_train = truth_dataset_format_tuples
+wav_file_paths_train = wav_file_paths
+truth_dataset_format_tuples_train = truth_dataset_format_tuples
 
 # pitch_detector = CnnPitchDetector()
-pitch_detector = CnnCqtPitchDetector()
+pitch_detector = CnnCqtPitchDetector(proba_threshold=0.3)
 pitch_detector.fit(
     wav_file_paths_train, truth_dataset_format_tuples_train,
-    wav_file_paths_test, truth_dataset_format_tuples_test,
+    # wav_file_paths_test, truth_dataset_format_tuples_test,
 )
-# pitch_detector.save('../models/pitch_detection/20170706_1148_cqt_ds1-3_80-perc.zip')
+pitch_detector.save('../models/pitch_detection/20170718_1224_cqt_ds12391011_100-perc_optimized-params_proba-thresh-0.3.zip')
