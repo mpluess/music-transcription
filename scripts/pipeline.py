@@ -18,6 +18,7 @@ from music_transcription.fileformat.guitar_pro.utils import Header, Measure, Tra
 from music_transcription.fileformat.guitar_pro.gp5_writer import write_gp5
 from music_transcription.onset_detection.cnn_onset_detection import CnnOnsetDetector
 from music_transcription.pitch_detection.cnn_cqt_pitch_detection import CnnCqtPitchDetector
+from music_transcription.pitch_detection.aubio_pitch_detection import AubioPitchDetector
 from music_transcription.string_fret_detection.simple_string_fret_detection import SimpleStringFretDetection
 
 # CONFIG
@@ -26,7 +27,7 @@ DATA_DIR = r'..\data'
 # path_to_wav_file = os.path.join(DATA_DIR, r'IDMT-SMT-GUITAR_V2\dataset3\audio\pathetique_mono.wav')
 # path_to_wav_file = os.path.join(DATA_DIR, r'IDMT-SMT-GUITAR_V2\dataset3\audio\nocturneNr2.wav')
 # path_to_wav_file = os.path.join(DATA_DIR, r'recordings\audio\mim-riff1-short-slow.wav')
-path_to_wav_file = os.path.join(DATA_DIR, r'recordings\audio\instrumental_rythm_ok_short.wav')
+path_to_wav_file = os.path.join(DATA_DIR, r'recordings\audio\instrumental_lead.wav')
 # path_to_wav_file = os.path.join(DATA_DIR, r'generated\audio\generated_mono_mono.wav')
 
 # tempo = None
@@ -53,7 +54,8 @@ n_frets = 24
 onset_detector = CnnOnsetDetector.from_zip('../models/onset_detection/20170627-3-channels_ds1-4_80-perc_adjusted-labels_with_config_thresh-0.05.zip')
 onset_times_seconds = onset_detector.predict_onsets(path_to_wav_file)
 
-pitch_detector = CnnCqtPitchDetector.from_zip('../models/pitch_detection/20170706_1148_cqt_ds1-3_80-perc.zip')
+#pitch_detector = CnnCqtPitchDetector.from_zip('../models/pitch_detection/20170711_0901_cqt_ds12-cv_ds391011-additional_onset-group-thresh-0.05_20-filters_poly-fixed-gen-77-88_3-spec_fold-4.zip')
+pitch_detector = AubioPitchDetector()
 list_of_pitch_sets = pitch_detector.predict_pitches(path_to_wav_file, onset_times_seconds)
 
 string_fret_detector = SimpleStringFretDetection(tuning, n_frets)
@@ -64,9 +66,7 @@ list_of_string_lists, list_of_fret_lists = string_fret_detector.predict_strings_
 for onset, pitch, string, fret in zip(onset_times_seconds, list_of_pitch_sets, list_of_string_lists, list_of_fret_lists):
     print('onset={}, pitch={}, string={}, fret={}'.format(onset, sorted(pitch, reverse=True), string, fret))
 
-beat_converter = SimpleBeatConverter()
-if tempo is not None:
-    beat_converter.set_tempo(tempo)
+beat_converter = SimpleBeatConverter(tempo_bpm=tempo, shortest_note=0.5)
 beats = beat_converter.transform(path_to_wav_file, onset_times_seconds, list_of_pitch_sets, list_of_string_lists, list_of_fret_lists)
 
 measures = []
