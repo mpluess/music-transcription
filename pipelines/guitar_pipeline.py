@@ -52,7 +52,7 @@ parser.add_argument('--tempo', type=int, default=TEMPO_DEFAULT,
                     help="Tempo of the recording in BPM. We'll try to determine this automatically if not set.")
 parser.add_argument('--beats_per_measure', type=int, default=4,
                     help='Time signature / number of quarter notes per measure')
-parser.add_argument('--shortest_note', default='1/16', choices=SHORTEST_NOTES.values(),
+parser.add_argument('--shortest_note', default='1/16', choices=SHORTEST_NOTES.keys(),
                     help='Shortest possible note')
 parser.add_argument('--instrument_id', type=int, default=27, help='Instrument id for GP5 file')
 parser.add_argument('--track_title', help='Track title for GP5 file')
