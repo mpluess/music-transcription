@@ -13,7 +13,6 @@ from keras.models import Input, Model, model_from_json
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.preprocessing import StandardScaler, MultiLabelBinarizer
 
-from music_transcription.string_fret_detection.abstract_string_detector import AbstractStringDetector
 from music_transcription.string_fret_detection.read_data import read_data_y, read_samples
 
 
@@ -106,7 +105,7 @@ class CnnStringFeatureExtractor(BaseEstimator, TransformerMixin):
         return np.concatenate(y_list)
 
 
-class CnnStringDetector(AbstractStringDetector):
+class CnnStringDetector:
     CONFIG_FILE = 'config.pickle'
     FEATURE_EXTRACTOR_FILE = 'feature_extractor.pickle'
     MODEL_FILE = 'model.json'
@@ -125,12 +124,15 @@ class CnnStringDetector(AbstractStringDetector):
                  tuning=(64, 59, 55, 50, 45, 40), proba_threshold=0.5, onset_group_threshold_seconds=0.05,
                  frame_rate_hz=100, sample_rate=44100, subsampling_step=1):
         if config is None:
-            super().__init__(tuning)
-            self.config['proba_threshold'] = proba_threshold
-            self.config['onset_group_threshold_seconds'] = onset_group_threshold_seconds
-            self.config['frame_rate_hz'] = frame_rate_hz
-            self.config['sample_rate'] = sample_rate
-            self.config['subsampling_step'] = subsampling_step
+            self.config = {
+                'tuning': tuning,
+                'strings': (np.array(tuning) > 0).astype('int').sum(),
+                'proba_threshold': proba_threshold,
+                'onset_group_threshold_seconds': onset_group_threshold_seconds,
+                'frame_rate_hz': frame_rate_hz,
+                'sample_rate': sample_rate,
+                'subsampling_step': subsampling_step,
+            }
         else:
             self.config = config
 

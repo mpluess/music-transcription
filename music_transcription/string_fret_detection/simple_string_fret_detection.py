@@ -1,27 +1,12 @@
-class SimpleStringFretDetection:
+from music_transcription.string_fret_detection.abstract_string_fret_detector import AbstractStringFretDetector
+
+
+class SimpleStringFretDetection(AbstractStringFretDetector):
     def __init__(self, tuning, n_frets):
-        self.tuning = tuning
-        self.n_frets = n_frets
-        self.min_pitch = min(tuning)
-        self.max_pitch = max(tuning) + n_frets
+        super().__init__(tuning, n_frets)
 
     def predict_strings_and_frets(self, path_to_wav_file, onset_times_seconds, list_of_pitch_sets):
-        """Assumes guitar with 6 strings.
-        The returned string and fret lists have exactly the same shapes.
-        String and fret information at the same indices belong together.
-
-        Returns
-        -------
-        list_of_string_lists : list of list
-            List (len = len(onset_times_seconds) = len(list_of_pitch_sets))
-            of lists (0 < len <= 6) of string numbers,
-            with 0 being the string with the highest pitch
-            and 5 the one with the lowest pitch.
-        list_of_fret_lists : list of list
-            List (len = len(onset_times_seconds) = len(list_of_pitch_sets))
-            of lists (0 < len <= 6) of fret numbers,
-            with 0 zero being the empty string.
-        """
+        """Assumes guitar with 6 strings."""
 
         list_of_string_lists = []
         list_of_fret_lists = []

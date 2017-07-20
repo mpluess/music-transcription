@@ -14,7 +14,7 @@ from sklearn.model_selection import train_test_split
 from music_transcription.onset_detection.metrics import onset_metric
 from music_transcription.onset_detection.read_data import get_wav_and_truth_files
 from music_transcription.string_fret_detection.read_data import read_data_y
-from music_transcription.string_fret_detection.cnn_string_detector import CnnStringDetector, CnnStringFeatureExtractor
+from music_transcription.string_fret_detection.cnn_string_detection import CnnStringDetector, CnnStringFeatureExtractor
 
 
 # active_datasets = {1, 2, 3}

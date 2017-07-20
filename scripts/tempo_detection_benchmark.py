@@ -1,30 +1,32 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from music_transcription.beat_conversion.simple_beat_conversion import SimpleBeatConverter
 from music_transcription.onset_detection.cnn_onset_detection import CnnOnsetDetector
 from music_transcription.pitch_detection.read_data import get_wav_and_truth_files
+from music_transcription.tempo_detection.aubio_tempo_detection import AubioTempoDetector
+from music_transcription.tempo_detection.simple_tempo_detection import SimpleTempoDetector
 
 # CONFIG
 DATA_DIR = r'..\data'
 
 onset_detector = CnnOnsetDetector.from_zip(
-    '../models/onset_detection/20170511-3-channels_ds1-4_80-perc_adjusted-labels.zip')
+    '../models/onset_detection/20170627-3-channels_ds1-4_80-perc_adjusted-labels_with_config_thresh-0.05.zip')
 
-beat_converter = SimpleBeatConverter()
+aubio_tempo_detector = AubioTempoDetector()
+simple_tempo_detector = SimpleTempoDetector()
 
 active_datasets = {4}
 wav_file_paths, truth_dataset_format_tuples = get_wav_and_truth_files(active_datasets)
 
 triples = []
-for wav_path in wav_file_paths:
+for wav_path in wav_file_paths[:10]:
     filename = wav_path.split('\\').pop().split('BPM.')[0]
     bpmstr = filename.split('_').pop()
     bpm_truth = int(bpmstr)
 
     onset_times_seconds = onset_detector.predict_onsets(wav_path)
 
-    bpm_aubio = beat_converter.determine_pitch_aubio(wav_path)
-    bpm_onset_times = beat_converter.determine_pitch_from_onsets(onset_times_seconds)
+    bpm_aubio = aubio_tempo_detector.predict(wav_path, onset_times_seconds)
+    bpm_onset_times = simple_tempo_detector.predict(wav_path, onset_times_seconds)
     triples.append((bpm_truth, bpm_aubio, bpm_onset_times))
 
 triples.sort()
