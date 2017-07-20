@@ -20,7 +20,9 @@ class SimpleBeatConverter:
     def split_beat_to_gp5_durations(self, beats):
         gp5_durations = []
         cur_duration = 4.0
+        # TODO epsilon
         while beats > 0 and cur_duration >= self.shortest_note:
+            # TODO epsilon
             if cur_duration <= self.beats_per_measure and cur_duration <= beats:
                 gp5_durations.append(self.convert_duration_beats_to_gp5(cur_duration))
                 beats -= cur_duration

@@ -141,21 +141,26 @@
 #         if line.startswith('dropout_conv=') or line.startswith('Accuracy: '):
 #             print(line)
 
-import os
-from sklearn.model_selection import KFold
+# import os
+# from sklearn.model_selection import KFold
+#
+# os.chdir('..')
+#
+# from music_transcription.pitch_detection.read_data import get_wav_and_truth_files
+#
+# DATASETS_CV = {1, 2}
+# DATASETS_ADDITIONAL = {3, 9, 10, 11}
+#
+# wav_file_paths_cv, truth_dataset_format_tuples_cv = get_wav_and_truth_files(DATASETS_CV)
+# wav_file_paths_additional, truth_dataset_format_tuples_additional = get_wav_and_truth_files(DATASETS_ADDITIONAL)
+#
+# k_fold = KFold(n_splits=5, shuffle=True, random_state=42)
+# for k, (train_indices, test_indices) in enumerate(k_fold.split(wav_file_paths_cv)):
+#     print(k)
+#     for path in sorted([wav_file_paths_cv[i] for i in test_indices]):
+#         print(path)
 
-os.chdir('..')
+# for f in [1/2, 1/4, 1/8, 1/16, 1/32, 1/64]:
+#     print(f)
 
-from music_transcription.pitch_detection.read_data import get_wav_and_truth_files
-
-DATASETS_CV = {1, 2}
-DATASETS_ADDITIONAL = {3, 9, 10, 11}
-
-wav_file_paths_cv, truth_dataset_format_tuples_cv = get_wav_and_truth_files(DATASETS_CV)
-wav_file_paths_additional, truth_dataset_format_tuples_additional = get_wav_and_truth_files(DATASETS_ADDITIONAL)
-
-k_fold = KFold(n_splits=5, shuffle=True, random_state=42)
-for k, (train_indices, test_indices) in enumerate(k_fold.split(wav_file_paths_cv)):
-    print(k)
-    for path in sorted([wav_file_paths_cv[i] for i in test_indices]):
-        print(path)
+print(float(4))

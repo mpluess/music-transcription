@@ -35,11 +35,11 @@ class AubioPitchDetector(AbstractPitchDetector):
             confidence = pitch_o.get_confidence()
             # possible Extension: TODO use all methods and get "best pitch" (most confident by most methods)
 
-            print("pitch:{} with confidence:{} at:{}s".format(
-                pitch,
-                confidence,
-                round(s_next*src.hop_size/src.samplerate, 3)
-            ))
+            # print("pitch:{} with confidence:{} at:{}s".format(
+            #     pitch,
+            #     confidence,
+            #     round(s_next*src.hop_size/src.samplerate, 3)
+            # ))
 
             for i in range(offset2):
                 samples, read = src()
@@ -48,11 +48,11 @@ class AubioPitchDetector(AbstractPitchDetector):
                 if pitch != pitch2 and (pitch == 0 or conf2 > confidence):
                     pitch = pitch2
                     confidence = conf2
-                    print("changed pitch to:{} with confidence:{} at:{}s".format(
-                        pitch,
-                        confidence,
-                        round((s_next + i + 1) * src.hop_size / src.samplerate, 3)
-                    ))
+                    # print("changed pitch to:{} with confidence:{} at:{}s".format(
+                    #     pitch,
+                    #     confidence,
+                    #     round((s_next + i + 1) * src.hop_size / src.samplerate, 3)
+                    # ))
                 confidence = max(confidence, conf2)  # update confidence if it was the same note
 
             if pitch < self.config['min_pitch']:

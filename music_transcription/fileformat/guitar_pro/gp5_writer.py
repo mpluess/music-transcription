@@ -15,7 +15,9 @@ def write_gp5(measures, tracks, beats,
               outfile="out.gp5"):
     version = 'FICHIER GUITAR PRO v5.00'  # for now only this version is supported
 
-    os.makedirs(os.path.dirname(outfile), exist_ok=True)  # check if output directory exists, create if needed.
+    dirname = os.path.dirname(outfile)
+    if dirname != '':
+        os.makedirs(dirname, exist_ok=True)  # check if output directory exists, create if needed.
     file = open(outfile, 'wb')
 
     _write_block_string(file, version, 30)  # write version
