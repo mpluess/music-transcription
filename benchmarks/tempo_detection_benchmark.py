@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from music_transcription.onset_detection.cnn_onset_detection import CnnOnsetDetector
-from music_transcription.pitch_detection.read_data import get_wav_and_truth_files
+from music_transcription.read_data import get_wav_and_truth_files
 from music_transcription.tempo_detection.aubio_tempo_detection import AubioTempoDetector
 from music_transcription.tempo_detection.simple_tempo_detection import SimpleTempoDetector
 

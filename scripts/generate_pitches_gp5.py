@@ -1,4 +1,7 @@
-"""Open output file in TuxGuitar - Export - Export Audio File
+"""Generate monophonic or polyphonic pitches as a GP5 file and with the corresponding truth files for onsets and pitches.
+
+To generate WAV from the GP5 output:
+Open output file in TuxGuitar - Export - Export Audio File
 
 File Encoding: PCM_SIGNED
 Custom soundbank: $INSTALL_DIR\TuxGuitar\share\soundfont\MagicSFver2.sf2

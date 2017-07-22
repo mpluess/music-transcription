@@ -104,7 +104,7 @@ def calc_beam8notes(numerator, denominator):
         denominator *= 2
         numerator *= 2
     if numerator > 12 or denominator > 8:
-        return 0, 0, 0, 0;
+        return 0, 0, 0, 0
 
     b8n = [0, 0, 0, 0]
     total = 0

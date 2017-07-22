@@ -1,4 +1,4 @@
-"""Run the current music transcription pipeline.
+"""Run the current guitar recording transcription pipeline.
 
 Input: guitar recording (wave file)
 Output: transcribed notes and tabs (gp5 file)
@@ -7,7 +7,8 @@ Parts:
 - onset detection
 - pitch detection
 - string and fret detection
-- mapping of onsets and pitches to measures and notes / chords
+- tempo detection
+- beat transformation (mapping of onsets and strings/frets to discrete notes in measures)
 - gp5 export
 """
 

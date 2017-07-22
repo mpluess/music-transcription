@@ -13,9 +13,9 @@ import numpy as np
 from sklearn.metrics import accuracy_score, classification_report
 from sklearn.model_selection import KFold
 
-from music_transcription.pitch_detection.cnn_pitch_detection import CnnPitchDetector
 from music_transcription.pitch_detection.cnn_cqt_pitch_detection import CnnCqtPitchDetector
-from music_transcription.pitch_detection.read_data import get_wav_and_truth_files, read_data_y
+from music_transcription.pitch_detection.read_data import read_data_y
+from music_transcription.read_data import get_wav_and_truth_files
 
 
 def predict(pitch_detector, wav_file_paths, truth_dataset_format_tuples,
@@ -61,7 +61,6 @@ for k, (train_indices, test_indices) in enumerate(k_fold.split(wav_file_paths_cv
     wav_file_paths_test = [wav_file_paths_cv[i] for i in test_indices]
     truth_dataset_format_tuples_test = [truth_dataset_format_tuples_cv[i] for i in test_indices]
 
-    # pitch_detector = CnnPitchDetector()
     pitch_detector = CnnCqtPitchDetector(proba_threshold=0.3)
     print('Fitting pitch detector')
     pitch_detector.fit(wav_file_paths_train, truth_dataset_format_tuples_train,

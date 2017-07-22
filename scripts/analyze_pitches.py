@@ -1,6 +1,7 @@
 from collections import defaultdict
 
-from music_transcription.pitch_detection.read_data import get_wav_and_truth_files, _read_onset_times_pitches
+from music_transcription.pitch_detection.read_data import _read_onset_times_pitches
+from music_transcription.read_data import get_wav_and_truth_files
 
 
 def count_pitches(active_datasets):

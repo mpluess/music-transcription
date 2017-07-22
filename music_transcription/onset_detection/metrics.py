@@ -79,6 +79,13 @@ def onset_metric(y, y_actual_onset_only, y_predicted, n_tolerance_frames_plus_mi
 
 
 def onset_metric_times(onset_times, onset_times_predicted, n_tolerance_seconds_plus_minus, epsilon=1e-6):
+    """Onset metric operating on times in seconds.
+
+    Allows a configurable tolerance in seconds.
+    The onset has to be detected in the time window actual_onset +/- tolerance to count as true positive.
+    Additional onsets in such a time window will not be counted as false positive.
+    """
+
     tp = 0
     fn = 0
     onset_times_predicted_no_fp = set()

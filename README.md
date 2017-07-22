@@ -5,4 +5,4 @@ Pipeline steps:
 - Pitch detection
 - String and fret detection
 - BPM detection
-- Onsets / pitches to measures / notes mapping
+- Mapping of onsets / strings / frets to discrete notes in measures

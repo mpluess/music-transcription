@@ -2,18 +2,8 @@ from xml.etree import ElementTree
 from warnings import warn
 from sklearn.preprocessing import MultiLabelBinarizer
 
-import music_transcription.onset_detection.read_data as onset_read_data
 import music_transcription.pitch_detection.read_data as pitch_read_data
-
-
-DATA_DIR = r'..\data'
-
-# Correction of onset times in seconds (see onset_detection.read_data._set_onset_label_adjusted_with_neighbors)
-DATASET_CORRECTIONS = onset_read_data.DATASET_CORRECTIONS
-
-
-def get_wav_and_truth_files(active_datasets):
-    return onset_read_data.get_wav_and_truth_files(active_datasets)
+from music_transcription.read_data import DATASET_CORRECTIONS
 
 
 def read_samples(path_to_wav, expected_sample_rate, subsampling_step, frame_rate_hz=None):

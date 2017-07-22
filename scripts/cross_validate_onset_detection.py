@@ -12,7 +12,7 @@ we can still train on a substantial percentage of the datasets 1 and 2.
 from sklearn.model_selection import KFold
 
 from music_transcription.onset_detection.cnn_onset_detection import CnnOnsetDetector
-from music_transcription.onset_detection.read_data import get_wav_and_truth_files
+from music_transcription.read_data import get_wav_and_truth_files
 
 DATASETS_CV = {1, 2}
 DATASETS_ADDITIONAL = {3, 4}

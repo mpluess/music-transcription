@@ -1,8 +1,7 @@
 from sklearn.model_selection import train_test_split
 
-from music_transcription.pitch_detection.cnn_pitch_detection import CnnPitchDetector
 from music_transcription.pitch_detection.cnn_cqt_pitch_detection import CnnCqtPitchDetector
-from music_transcription.pitch_detection.read_data import get_wav_and_truth_files
+from music_transcription.read_data import get_wav_and_truth_files
 
 active_datasets = {1, 2, 3, 9, 10, 11}
 
@@ -18,7 +17,6 @@ wav_file_paths, truth_dataset_format_tuples = get_wav_and_truth_files(active_dat
 wav_file_paths_train = wav_file_paths
 truth_dataset_format_tuples_train = truth_dataset_format_tuples
 
-# pitch_detector = CnnPitchDetector()
 pitch_detector = CnnCqtPitchDetector(proba_threshold=0.3)
 pitch_detector.fit(
     wav_file_paths_train, truth_dataset_format_tuples_train,

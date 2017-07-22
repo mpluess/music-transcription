@@ -163,4 +163,46 @@
 # for f in [1/2, 1/4, 1/8, 1/16, 1/32, 1/64]:
 #     print(f)
 
-print(float(4))
+# print(float(4))
+
+
+# print('')
+# print('n_tolerance_seconds_plus_minus=0.02')
+# for file, metrics in sorted(file_metrics_2_tuples, key=lambda t: t[1].f1(), reverse=True):
+#     print(file)
+#     print_metrics(metrics)
+
+
+# proba_threshold
+# for proba_threshold in [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]:
+#     pitch_detector.config['proba_threshold'] = proba_threshold
+#     print(proba_threshold)
+#     predict_print_metrics(pitch_detector, wav_file_paths_test, data_test[1], y_test, min_pitch, max_pitch)
+
+# Verbose / confusion
+# y_test_offset = 0
+# for path_to_wav, onset_times_seconds in zip(wav_file_paths_test, data_test[1]):
+#     y_test_part = y_test[y_test_offset:y_test_offset + len(onset_times_seconds), :]
+#     y_test_predicted_part = pitch_detector.predict(path_to_wav, onset_times_seconds)
+#     assert y_test_part.shape == y_test_predicted_part.shape
+#
+#     print(path_to_wav)
+#     print('Accuracy: {}'.format(sklearn.metrics.accuracy_score(y_test_part, y_test_predicted_part)))
+#     print(sklearn.metrics.classification_report(y_test_part, y_test_predicted_part,
+#                                                 target_names=[str(pitch) for pitch in range(min_pitch, max_pitch + 1)]))
+#
+#     for y_test_row, y_test_predicted_row in zip(y_test_part, y_test_predicted_part):
+#         for pitch, label, label_predicted in zip(range(min_pitch, max_pitch + 1), y_test_row, y_test_predicted_row):
+#             if label != 0 or label_predicted != 0:
+#                 print('{} {} {}'.format(pitch, label, label_predicted))
+#         print('')
+#
+#     y_test_offset += len(onset_times_seconds)
+
+# for y_test_row, y_test_predicted_row in zip(y_test, y_test_predicted):
+#     for pitch, label, label_predicted in zip(range(min_pitch, max_pitch + 1), y_test_row, y_test_predicted_row):
+#         if label != 0 or label_predicted != 0:
+#             print('{} {} {}'.format(pitch, label, label_predicted))
+#     print('')
+
+
