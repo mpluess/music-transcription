@@ -293,6 +293,30 @@ class CnnOnsetDetector(AbstractOnsetDetector):
                  # feature extractor params
                  frame_rate_hz=100, sample_rate=44100, subsampling_step=1, image_data_format='channels_first',
                  winlen_nfft_per_channel=((0.023, 1024), (0.046, 2048), (0.092, 4096))):
+        """
+
+        Parameters
+        ----------
+        config : dict
+            CnnOnsetDetector configuration (use this when loading an existing model)
+        feature_extractor : CnnFeatureExtractor
+            Feature extractor object (use this when loading an existing model)
+        model
+            Keras model (use this when loading an existing model)
+        onset_group_threshold_seconds : float
+            Consecutive onsets less than onset_group_threshold_seconds apart will be grouped together.
+        frame_rate_hz : int
+            Frame rate in Hz
+        sample_rate : int
+            Sample rate in Hz
+        subsampling_step : int
+            If > 1: only take every nth sample.
+        image_data_format : str
+            One of 'channels_first' (for Theano backend), 'channels_last' (Tensorflow backend).
+        winlen_nfft_per_channel : tuple of tuple
+            Tuple of (winlen_seconds, nfft) tuples to configure spectrograms.
+        """
+
         if config is None:
             super().__init__(onset_group_threshold_seconds)
         else:

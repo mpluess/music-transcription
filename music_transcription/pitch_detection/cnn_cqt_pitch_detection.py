@@ -18,6 +18,8 @@ from music_transcription.pitch_detection.read_data import read_samples, read_dat
 
 
 class CnnCqtFeatureExtractor(BaseEstimator, TransformerMixin):
+    """Extract Constant-Q spectrogram excerpts around each onset."""
+
     def __init__(self, image_data_format, sample_rate, cqt_configs, n_frames_before, n_frames_after):
         self.image_data_format = image_data_format
         self.sample_rate = sample_rate
@@ -28,9 +30,50 @@ class CnnCqtFeatureExtractor(BaseEstimator, TransformerMixin):
         self.standard_scalers_per_X = None
 
     def fit_transform(self, data, y=None, **fit_params):
-        return self.fit(data, save_data=True).transform(None, load_data=True, verbose=True)
+        """Fit and transform in one go. Feature extraction is only done once.
+
+        Parameters
+        ----------
+        data : tuple
+            (list_of_samples, list_of_onset_times)
+        y
+            Not used
+        fit_params
+            Not used
+        Returns
+        -------
+        tuple
+            (list_of_X, sample_file_indexes)
+            list_of_X
+                List of feature matrices X, one per Constant-Q spectrogram configuration -> len(list_of_X) = len(self.cqt_configs)
+                channels_first: X.shape = (n_samples, 1, n_frames_before + 1 + n_frames_after, n_bins)
+                channels_last: X.shape = (n_samples, n_frames_before + 1 + n_frames_after, n_bins, 1)
+            sample_file_indexes : list
+                len(sample_file_indexes) = n_samples
+                Information about which file each sample comes from, in the form of an index
+                to the list_of_samples / list_of_onset_times lists.
+        """
+
+        return self.fit(data, save_data=True).transform(load_data=True, verbose=True)
 
     def fit(self, data, y=None, save_data=False):
+        """Fit standard scalers for each spectrogram and bin.
+
+        Parameters
+        ----------
+        data : tuple
+            (list_of_samples, list_of_onset_times)
+        y
+            Not used
+        save_data : bool
+            If true, saves list_of_X, list_of_n_frames_per_file, cqt_configs, list_of_onset_times to the object
+            so they can be reused in the transform method.
+
+        Returns
+        -------
+        self : CnnCqtFeatureExtractor
+        """
+
         list_of_samples, list_of_onset_times = data
 
         print('Creating spectrograms')
@@ -54,7 +97,34 @@ class CnnCqtFeatureExtractor(BaseEstimator, TransformerMixin):
 
         return self
 
-    def transform(self, data, load_data=False, verbose=False):
+    def transform(self, data=None, load_data=False, verbose=False):
+        """
+
+        Parameters
+        ----------
+        data : tuple
+            (list_of_samples, list_of_onset_times)
+        load_data : bool
+            If true, retrieve saved versions of list_of_X, list_of_n_frames_per_file, cqt_configs, list_of_onset_times
+            rather than extracting them again.
+        verbose : bool
+            If true, print debug information, mostly about the shapes of tensors.
+
+        Returns
+        -------
+        tuple
+            (list_of_X, sample_file_indexes)
+            list_of_X : list
+                List of feature tensors X, one per Constant-Q spectrogram configuration -> len(list_of_X) = len(self.cqt_configs)
+                channels_first: X.shape = (n_samples, 1, n_frames_before + 1 + n_frames_after, n_bins)
+                channels_last: X.shape = (n_samples, n_frames_before + 1 + n_frames_after, n_bins, 1)
+            sample_file_indexes : list
+                len(sample_file_indexes) = n_samples
+                Information about which file each sample comes from, in the form of an index
+                to the list_of_samples / list_of_onset_times lists.
+        """
+
+        assert data is not None or load_data is True
         if load_data:
             list_of_X = self._list_of_X
             list_of_n_frames_per_file = self._list_of_n_frames_per_file
@@ -117,7 +187,27 @@ class CnnCqtFeatureExtractor(BaseEstimator, TransformerMixin):
         return list_of_X, sample_file_indexes
 
     def _extract_spectrogram_features(self, list_of_samples):
-        list_of_X = []
+        """Extract Constant-Q spectrograms.
+
+        Parameters
+        ----------
+        list_of_samples : list of ndarray
+            List of 1D ndarrays of samples
+
+        Returns
+        -------
+        tuple
+            (list_of_spectrograms, list_of_n_frames_per_file, cqt_configs)
+            list_of_spectrograms : list
+                List of spectrograms, one per Constant-Q spectrogram configuration -> len(list_of_spectrograms) = len(self.cqt_configs)
+                spectrogram.shape = (n_frames_all_files, n_bins)
+            list_of_n_frames_per_file : list of list
+                List of lists of number of frames per WAV file, one per configuration
+            cqt_configs : list of dict
+                Constant-Q configurations used for the spectrograms
+        """
+
+        list_of_spectrograms = []
         list_of_n_frames_per_file = []
         for cqt_config in self.cqt_configs:
             X_parts = [self._extract_spectrogram_features_X(samples,
@@ -127,30 +217,82 @@ class CnnCqtFeatureExtractor(BaseEstimator, TransformerMixin):
                                                             bins_per_octave=cqt_config['bins_per_octave'],
                                                             scale=cqt_config['scale'])
                        for samples in list_of_samples]
-            list_of_X.append(np.concatenate(X_parts))
+            list_of_spectrograms.append(np.concatenate(X_parts))
             list_of_n_frames_per_file.append([X_part.shape[0] for X_part in X_parts])
 
-        return list_of_X, list_of_n_frames_per_file, self.cqt_configs
+        return list_of_spectrograms, list_of_n_frames_per_file, self.cqt_configs
 
     def _extract_spectrogram_features_X(
             self, samples,
             hop_length, fmin, n_bins, bins_per_octave, scale
     ):
+        """Extract Constant-Q spectrogram.
+
+        Parameters
+        ----------
+        samples : ndarray
+            1D ndarray of samples
+        hop_length : int
+            Hop length for Constant-Q transformation
+        fmin : float
+            Minimum frequency
+        n_bins : int
+            Total number of bins
+        bins_per_octave : int
+            Bins per octave. Determines the maximum frequency together with n_bins.
+        scale : bool
+            Whether or not to scale / normalize the spectrogram.
+
+        See http://librosa.github.io/librosa/generated/librosa.core.cqt.html
+        for more details on the CQT-specific parameters.
+
+        Returns
+        -------
+        cqt_spectrogram : ndarray
+            Constant-Q spectrogram with shape (n_frames, n_bins)
+        """
+
         cqt_spectrogram = cqt(
             samples, sr=self.sample_rate, hop_length=hop_length, fmin=fmin, n_bins=n_bins,
             bins_per_octave=bins_per_octave, scale=scale
         )
         # Convert from complex to real (uses "norm")
-        # Transpose (n_bins, n_hops) -> (n_hops, n_bins)
+        # Transpose (n_bins, n_frames) -> (n_frames, n_bins)
         cqt_spectrogram = np.abs(cqt_spectrogram).T
 
         return cqt_spectrogram
 
     def _get_X_around_onset_with_context(self, X, list_of_onset_times, n_frames_per_file, frame_rate_hz,
                                          border_value=0.0):
-        """X = complete spectrogram"""
-        n_samples = X.shape[0]
-        assert n_samples == sum(n_frames_per_file)
+        """Limit spectrogram to the frames around each onset.
+
+        Parameters
+        ----------
+        X : ndarray
+            X.shape = (n_frames_all_files, n_bins)
+        list_of_onset_times : list of list
+            List of onset times per file.
+        n_frames_per_file : list
+            List of number of frames per WAV file
+        frame_rate_hz : float
+            Frame rate in Hz
+        border_value
+            Fill matrix with this value in edge cases (start / end of spectrogram).
+
+        Returns
+        -------
+        tuple
+            (X_new, sample_file_indexes)
+            X_new : ndarray
+                X_new.shape = (n_onsets, n_frames_before + 1 + n_frames_after, n_bins)
+            sample_file_indexes : list
+                len(sample_file_indexes) = n_samples
+                Information about which file each sample comes from, in the form of an index
+                to the list_of_onset_times list.
+        """
+
+        n_frames_all_files = X.shape[0]
+        assert n_frames_all_files == sum(n_frames_per_file)
 
         # [10 15 5] -> [5 10 15]
         start_index_per_file = np.roll(n_frames_per_file, 1)
@@ -180,7 +322,7 @@ class CnnCqtFeatureExtractor(BaseEstimator, TransformerMixin):
         X_new = np.empty((n_onsets, self.n_frames_before + 1 + self.n_frames_after, n_bins))
         for i, start_index in enumerate(start_indices):
             for offset in range(-self.n_frames_before, self.n_frames_after + 1):
-                if start_index + offset > -1 and start_index + offset < n_samples:
+                if start_index + offset > -1 and start_index + offset < n_frames_all_files:
                     # X_new 2nd dim: [0, frames_before+1+frames_after[
                     # X 1st dim: [start_index-frames_before, start_index+frames_after+1[
                     X_new[i, offset + self.n_frames_before, :] = X[start_index + offset, :]
@@ -213,7 +355,7 @@ class CnnCqtPitchDetector(AbstractPitchDetector):
             'scale': False,
         },
     ]
-    # CQT_CONFIGS_3_VARIANTS = [
+    # CQT_CONFIGS_3_SPECTROGRAMS = [
     #     {
     #         'hop_length': 256,
     #         'fmin': 55.0,
@@ -303,6 +445,47 @@ class CnnCqtPitchDetector(AbstractPitchDetector):
                  # feature extractor params
                  image_data_format='channels_first', sample_rate=44100, cqt_configs=None,
                  n_frames_before=15, n_frames_after=20):
+        """
+
+        Parameters
+        ----------
+        config : dict
+            CnnOnsetDetector configuration (use this when loading an existing model)
+        feature_extractor : CnnFeatureExtractor
+            Feature extractor object (use this when loading an existing model)
+        model
+            Keras model (use this when loading an existing model)
+        tuning : tuple
+            Tuple with len(tuning) = number of strings, with each entry being a midi pitch, in descending order from left to right.
+        n_frets : int
+            Number of frets
+        proba_threshold : float
+            Probability threshold: all probabilities above this will be classified as onsets.
+            Can be used to fine-tune the model towards precision or recall.
+        onset_group_threshold_seconds : float
+            Consecutive onsets less than onset_group_threshold_seconds apart will be grouped together.
+        subsampling_step : int
+            If > 1: only take every nth sample.
+        sample_weights : str
+            If 'balanced': Assign sample weights inversely proportional to the number of samples in a dataset.
+            Rationale: boost the samples in the small datasets so all datasets have the same impact.
+        class_distribution_for_weights : dict
+            Desired class distribution
+            key = class index, value = how frequent is a class compared to the rarest class which has value = 1.0
+            If set, class weights will be adjusted to mimic this distribution.
+        image_data_format : str
+            One of 'channels_first' (for Theano backend), 'channels_last' (Tensorflow backend).
+        sample_rate : int
+            Sample rate in Hz
+        cqt_configs : list of dict
+            Constant-Q configurations used for the spectrograms
+            See DEFAULT_CQT_CONFIGS, CQT_CONFIGS_3_SPECTROGRAMS for an example.
+        n_frames_before : int
+            This amount of frames before the onset will be included in an onset's spectrogram as context.
+        n_frames_after : int
+            This amount of frames after the onset will be included in an onset's spectrogram as context.
+        """
+
         if config is None:
             super().__init__(tuning, n_frets)
             self.config['proba_threshold'] = proba_threshold
@@ -327,7 +510,8 @@ class CnnCqtPitchDetector(AbstractPitchDetector):
 
     @classmethod
     def from_zip(cls, path_to_zip, work_dir='zip_tmp'):
-        """Load CnnCqtPitchDetector from a zipfile containing a pickled config dict, a pickled CnnFeatureExtractor, a Keras model JSON file and a Keras weights HDF5 file."""
+        """Load CnnCqtPitchDetector from a zipfile containing a pickled config dict, a pickled CnnCqtFeatureExtractor,
+        a Keras model JSON file and a Keras weights HDF5 file."""
 
         if os.path.exists(work_dir):
             shutil.rmtree(work_dir)
@@ -363,7 +547,7 @@ class CnnCqtPitchDetector(AbstractPitchDetector):
         return model
 
     def save(self, path_to_zip, work_dir='zip_tmp_pitch'):
-        """Save this CnnCqtPitchDetector to a zipfile containing a pickled config, a pickled CnnFeatureExtractor,
+        """Save this CnnCqtPitchDetector to a zipfile containing a pickled config, a pickled CnnCqtFeatureExtractor,
         a Keras model JSON file and a Keras weights HDF5 file.
         """
 
@@ -403,6 +587,20 @@ class CnnCqtPitchDetector(AbstractPitchDetector):
 
     def fit(self, wav_file_paths_train, truth_dataset_format_tuples_train,
             wav_file_paths_val=None, truth_dataset_format_tuples_val=None):
+        """Fit Keras model using spectrograms from wav_file_paths_train and labels from truth_dataset_format_tuples_train.
+
+        Parameters
+        ----------
+        wav_file_paths_train : list
+            List of WAV file paths to train the model with.
+        truth_dataset_format_tuples_train : list of tuple
+            List of tuples (path_to_truth_file, dataset, format) for the labels.
+        wav_file_paths_val : list
+            List of WAV file paths for the validation set. Only used to monitor the validation loss during training.
+        truth_dataset_format_tuples_val : list of tuple
+            List of tuples (path_to_truth_file, dataset, format) for the validation set labels.
+        """
+
         data_train, y_train, wav_file_paths_train_valid, truth_dataset_format_tuples_train_valid = read_data_y(
             wav_file_paths_train, truth_dataset_format_tuples_train,
             self.feature_extractor.sample_rate, self.config['subsampling_step'],
@@ -448,6 +646,7 @@ class CnnCqtPitchDetector(AbstractPitchDetector):
             class_distribution_normalized = {k: v / min_value for k, v in class_distribution.items()}
             print(class_distribution_normalized)
 
+            # Boost classes which are underrepresented and vice versa
             class_weights = {
                 k: value_should / class_distribution_normalized[k]
                 for k, value_should in self.config['class_distribution_for_weights'].items()
@@ -460,6 +659,7 @@ class CnnCqtPitchDetector(AbstractPitchDetector):
                        batch_size=self.BATCH_SIZE,
                        sample_weight=sample_weights,
                        class_weight=class_weights,
+                       # Optimize weights till the loss has converged
                        callbacks=[EarlyStopping(monitor='loss', patience=6)], verbose=2,
                        validation_data=validation_data)
 
@@ -504,10 +704,12 @@ class CnnCqtPitchDetector(AbstractPitchDetector):
 
         inputs = []
         conv_blocks = []
+        # One input with two convolutional blocks per spectrogram
         for X in list_of_X:
             spectrogram = Input(shape=X.shape[1:])
             inputs.append(spectrogram)
 
+            # 10 small filters finding local patterns applicable to different pitches
             conv = Conv2D(10, (10, 3), padding='valid')(spectrogram)
             conv = Activation('relu')(conv)
             conv = MaxPooling2D(pool_size=(6, 3))(conv)
@@ -515,6 +717,7 @@ class CnnCqtPitchDetector(AbstractPitchDetector):
             conv = Flatten()(conv)
             conv_blocks.append(conv)
 
+            # 512 filters spanning the whole pitch bandwidth of the guitar
             conv = Conv2D(512, (10, 180), strides=(5, 1), padding='valid')(spectrogram)
             conv = Activation('relu')(conv)
             conv = MaxPooling2D(pool_size=(2, 1))(conv)
@@ -522,6 +725,7 @@ class CnnCqtPitchDetector(AbstractPitchDetector):
             conv = Flatten()(conv)
             conv_blocks.append(conv)
 
+        # Concatenate convolutional blocks and feed them to a feed forward NN with one hidden layer.
         z = Concatenate()(conv_blocks)
         z = Dense(256)(z)
         z = Activation('relu')(z)
@@ -535,6 +739,8 @@ class CnnCqtPitchDetector(AbstractPitchDetector):
         return model
 
     def predict(self, path_to_wav_file, onset_times_seconds, epsilon=1e-7):
+        """Predict pitches at all onsets of this WAV file. Return them as binary multilabel classification matrix."""
+
         samples = read_samples(path_to_wav_file,
                                self.feature_extractor.sample_rate,
                                self.config['subsampling_step'])
@@ -556,4 +762,6 @@ class CnnCqtPitchDetector(AbstractPitchDetector):
         return y
 
     def predict_pitches(self, path_to_wav_file, onset_times_seconds):
+        """Predict pitches at all onsets of this WAV file. Return them as a list of pitch sets / chords."""
+
         return self.multilabel_matrix_to_pitch_sets(self.predict(path_to_wav_file, onset_times_seconds))
