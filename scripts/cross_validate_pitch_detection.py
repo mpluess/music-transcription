@@ -1,4 +1,4 @@
-"""Do a 5-fold cross validation on a set of datasets using additional datasets for training.
+"""Cross validation on a set of datasets using additional datasets for training.
 
 The primary purpose is to have a fair comparison with the paper:
 AUTOMATIC TABLATURE TRANSCRIPTION OF ELECTRIC GUITAR RECORDINGS BY ESTIMATION OF SCORE- AND INSTRUMENT-RELATED PARAMETERS

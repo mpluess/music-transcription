@@ -205,4 +205,7 @@
 #             print('{} {} {}'.format(pitch, label, label_predicted))
 #     print('')
 
+from music_transcription.string_fret_detection.sequence_string_fret_detection import SequenceStringFretDetection
 
+string_fret_detector = SequenceStringFretDetection(tuning=(64, 59, 55, 50, 45, 40), n_frets=24)
+string_fret_detector.predict_strings_and_frets(None, [0.5, 1.0, 1.5], [{50, 60}, {45, 55}, {60, 70}])

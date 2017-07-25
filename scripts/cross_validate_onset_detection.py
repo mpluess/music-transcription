@@ -35,4 +35,4 @@ for k, (train_indices, test_indices) in enumerate(k_fold.split(wav_file_paths_cv
     print('TEST')
     onset_detector.predict_print_metrics(wav_file_paths_test, truth_dataset_format_tuples_test)
 
-    onset_detector.save('../models/onset_detection/20170511-1-channel_ds12-cv_ds34-additional_fold-' + str(k) + '_adjusted-labels.zip')
+    onset_detector.save('../models/onset_detection/20170725-3-channels_ds12-cv_ds34-additional_fold-' + str(k) + '.zip')

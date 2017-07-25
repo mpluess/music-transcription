@@ -10,15 +10,16 @@ def read_X_y(path_to_wav, frame_rate_hz, expected_sample_rate, subsampling_step,
              path_to_truth, truth_format, dataset):
     """Read samples and labels of a wave file.
 
-    Returns a tuple (X_part, y_part, y_actual_onset_only_part)
+    Returns a tuple (samples, y_part, y_actual_onset_only_part)
     """
 
-    X_part, length_seconds = read_X(path_to_wav, frame_rate_hz, expected_sample_rate, subsampling_step)
-    if X_part is not None:
+    samples, length_seconds = read_X(path_to_wav, frame_rate_hz, expected_sample_rate, subsampling_step)
+    if samples is not None:
         y_part, y_actual_onset_only_part = read_y(truth_format, path_to_truth, length_seconds, frame_rate_hz, dataset)
-        if X_part.shape[0] != y_part.shape[0]:
-            raise ValueError('X_part vs. y_part shape mismatch: ' + str(X_part.shape[0]) + ' != ' + str(y_part.shape[0]))
-        return X_part, y_part, y_actual_onset_only_part
+        samples_per_frame = expected_sample_rate // frame_rate_hz // subsampling_step
+        if samples.shape[0] // samples_per_frame != y_part.shape[0]:
+            raise ValueError('samples vs. y_part shape mismatch: ' + str(samples.shape[0] // samples_per_frame) + ' != ' + str(y_part.shape[0]))
+        return samples, y_part, y_actual_onset_only_part
     else:
         return None, None, None
 
@@ -26,7 +27,7 @@ def read_X_y(path_to_wav, frame_rate_hz, expected_sample_rate, subsampling_step,
 def read_X(path_to_wav, frame_rate_hz, expected_sample_rate, subsampling_step):
     """Read samples of a wave file. Returns a tuple (sample_np_array, length_seconds).
 
-    sample_np_array.shape = (n_frames, ceil(sample_rate / frame_rate_hz / subsampling_step))
+    sample_np_array.shape = (n_samples,)
     """
 
     # scipy.io.wavfile is not able to read 24-bit data, hence the need to use this alternative library
@@ -43,14 +44,14 @@ def read_X(path_to_wav, frame_rate_hz, expected_sample_rate, subsampling_step):
         raise ValueError('Sample rate ' + str(sample_rate) + ' % frame rate ' + str(frame_rate_hz) + ' != 0')
     samples_per_frame = int(sample_rate / frame_rate_hz)
     offset = 0
-    X = []
+    samples_subsampled_cut = []
     # Cut off last samples
     while offset <= len(samples) - samples_per_frame:
-        X.append(samples[offset:offset + samples_per_frame:subsampling_step])
+        samples_subsampled_cut.extend(samples[offset:offset + samples_per_frame:subsampling_step])
         offset += samples_per_frame
 
-    X = np.array(X)
-    return X, offset / sample_rate
+    samples_subsampled_cut = np.array(samples_subsampled_cut)
+    return samples_subsampled_cut, offset / sample_rate
 
 
 def read_y(truth_format, path_to_truth, length_seconds, frame_rate_hz, dataset):

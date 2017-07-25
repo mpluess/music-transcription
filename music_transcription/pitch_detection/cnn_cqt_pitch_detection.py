@@ -27,6 +27,9 @@ class CnnCqtFeatureExtractor(BaseEstimator, TransformerMixin):
 
         self.standard_scalers_per_X = None
 
+    def fit_transform(self, data, y=None, **fit_params):
+        return self.fit(data, save_data=True).transform(None, load_data=True, verbose=True)
+
     def fit(self, data, y=None, save_data=False):
         list_of_samples, list_of_onset_times = data
 
@@ -112,9 +115,6 @@ class CnnCqtFeatureExtractor(BaseEstimator, TransformerMixin):
                 print(list_of_X[i].shape)
 
         return list_of_X, sample_file_indexes
-
-    def fit_transform(self, data, y=None, **fit_params):
-        return self.fit(data, save_data=True).transform(None, load_data=True, verbose=True)
 
     def _extract_spectrogram_features(self, list_of_samples):
         list_of_X = []

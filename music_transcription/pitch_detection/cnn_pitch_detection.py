@@ -1,3 +1,8 @@
+"""CNN pitch detection based on Mel-spaced spectrograms, very similar to the CNN onset detection approach.
+
+This is outdated and replaced by the superior approach based on Constant-Q spectrograms (cnn_cqt_pitch_detection.py).
+"""
+
 import datetime
 from keras.callbacks import EarlyStopping
 from keras.layers import Activation, Conv2D, Dense, Dropout, Flatten, MaxPooling2D
