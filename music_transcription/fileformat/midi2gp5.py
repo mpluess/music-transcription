@@ -1,19 +1,9 @@
 from heapq import heappush, heappop
 from copy import deepcopy
+from math import log2
 from music_transcription.fileformat.MIDI import midi2score
 from music_transcription.fileformat.guitar_pro.gp5_writer import write_gp5
 from music_transcription.fileformat.guitar_pro.utils import *
-
-MIDI2GP5_ACCURACY_QUARTERS = 1
-MIDI2GP5_ACCURACY_EIGHTS = 2
-MIDI2GP5_ACCURACY_SIXTEENTHS = 4
-MIDI2GP5_ACCURACY_32 = 8
-MIDI2GP5_ACCURACY_64 = 16
-
-MIDI2GP5_ACCURACY_TO_GP5DURATION = {1: 0, 2: 1, 4: 2, 8: 3, 16: 4}
-
-G_ACCURACY = MIDI2GP5_ACCURACY_SIXTEENTHS
-G_GP5DURATION = MIDI2GP5_ACCURACY_TO_GP5DURATION[G_ACCURACY]
 
 Event = namedtuple("Event", ['time', 'track', 'event'])
 
@@ -41,7 +31,6 @@ def determine_tuning(min_note):
 
 # returns true if all notes in notes_arr are either not played or tied
 def tied_or_none(notes_arr):
-    print(notes_arr)
     result = True
     for nt in notes_arr:
         result = result and (nt is None or nt.tied)
@@ -51,23 +40,22 @@ def tied_or_none(notes_arr):
 # takes a number of notes (of length G_GP5DURATION) which determine the duration of a note
 # outputs an array of gp5-lengths that represent the same note duration
 # e.g. a note is 5 16ths long - output should be a quarter and a sixteenth, so [0, 2]
-def get_collapsed_lengths(num_notes):
+def get_collapsed_lengths(num_notes, gp5_duration):
     lengths = []
-    duration = G_GP5DURATION
-    while num_notes > 0 and duration > -2:
+    while num_notes > 0 and gp5_duration > -2:
         if num_notes % 2 == 1:
-            lengths.append(duration)
+            lengths.append(gp5_duration)
             num_notes -= 1
         num_notes = int(num_notes/2)
-        duration -= 1
+        gp5_duration -= 1
     for k in range(num_notes):
-        lengths.append(duration)
+        lengths.append(gp5_duration)
     lengths.reverse()
     return lengths
 
 
 # replace beats with many short (tied) notes to notes with collapsed lengths
-def collapse_beats(beats):
+def collapse_beats(beats, gp5_duration):
     for x in range(len(beats)):
         for y in range(len(beats[x])):
             new_beats = []
@@ -84,8 +72,8 @@ def collapse_beats(beats):
                     cur_beat_tied = bt
                 else:
                     c_notes = cur_beat.notes
-                    print(cur_count, get_collapsed_lengths(cur_count))
-                    for z in get_collapsed_lengths(cur_count):
+                    # print(cur_count, get_collapsed_lengths(cur_count, gp5_duration))
+                    for z in get_collapsed_lengths(cur_count, gp5_duration):
                         new_beats.append(beat(c_notes, duration=z, pause=cur_beat.pause, empty=cur_beat.empty))
                         if cur_beat_tied is not None:
                             c_notes = cur_beat_tied.notes
@@ -95,7 +83,8 @@ def collapse_beats(beats):
             beats[x][y] = (new_beats, [])
 
 
-def convert_midi2gp5(path_to_midi, force_drums=False):
+def convert_midi2gp5(path_to_midi, outfile, shortest_note=0.25, init_tempo=120, time_signature=(4, 4),
+                     force_drums=False, default_instrument=25, verbose=False):
     gp5_measures = []
     gp5_tracks = []
     gp5_beats = []
@@ -121,7 +110,7 @@ def convert_midi2gp5(path_to_midi, force_drums=False):
         # determine track mapping
         track_mapping[i] = -1
         track_name[i] = "Track" + str(i)
-        track_instrument[i] = 25
+        track_instrument[i] = default_instrument
         track_max_note[i] = -1
         track_min_note[i] = 128
         elements_to_push = []
@@ -129,9 +118,10 @@ def convert_midi2gp5(path_to_midi, force_drums=False):
             if event[0] in midi_events:
                 if event[0] == 'patch_change' and event[1] == 0:
                     track_instrument[i] = event[3]
-                    if event[2] == 9 or force_drums:  # channel 10 (0-based here) indicates drum track! (midi standard)
+                    if event[2] == 9:  # channel 10 (0-based here) indicates drum track! (midi standard)
                         track_instrument[i] = -1 - track_instrument[i]  # save drums as negative number (-1 bc -0 == 0)
-                    print('initial patch [raw track:{}]: chan:{}, patch:{}'.format(i, event[2], event[3]))
+                    if verbose:
+                        print('initial patch [raw track:{}]: chan:{}, patch:{}'.format(i, event[2], event[3]))
                 else:
                     elements_to_push.append(event)
                     if event[0] == 'note':  # start_time, duration, channel, note, velocity
@@ -155,18 +145,22 @@ def convert_midi2gp5(path_to_midi, force_drums=False):
             track_mapping[key] = idx
             idx += 1
 
-            tuning = determine_tuning(track_min_note[key])
-            n_strings = 7 - tuning.count(-1)
+            # default values, assume drum track
+            tuning = (0, 0, 0, 0, 0, 0, 0)  # apparently file format writes this tuning for drums
+            n_strings = 6  # apparently file format writes drum tracks have 6 strings
             channel1 = channel2 = 10  # default assume drum track
-            if track_instrument[key] >= 0:  # not a drum track
+
+            if track_instrument[key] >= 0 and not force_drums:  # not a drum track
                 channel1 = min(unused_midi_channels)
                 unused_midi_channels.remove(channel1)
                 channel2 = min(unused_midi_channels)
                 unused_midi_channels.remove(channel2)
-            else:
+                tuning = determine_tuning(track_min_note[key])
+                n_strings = 7 - tuning.count(-1)
+            elif track_instrument[key] < 0:
                 track_instrument[key] = -1 - track_instrument[key]  # get back correct instrument number
-                tuning = (0, 0, 0, 0, 0, 0, 0)  # apparently file format writes this tuning for drums
-                n_strings = 6  # apparently file format writes drum tracks have 6 strings
+            elif force_drums:
+                track_instrument[key] = 0
             gp5_tracks.append(Track(
                 track_name[key],  # track name
                 n_strings,  # number of strings
@@ -183,19 +177,18 @@ def convert_midi2gp5(path_to_midi, force_drums=False):
     track_struct = []
     for t in gp5_tracks:
         track_struct.append(([], []))  # add t tuples with two empty lists (for each voice)
-        print(t)
+        if verbose:
+            print(t)
 
-    # init default values
-    init_tempo = 120
+    numerator, denominator = time_signature
+    note_accuracy = 1 / shortest_note  # number of notes per quarter
+    gp5_duration = int(log2(note_accuracy))  # calculate gp5-duration
 
-    cur_numerator = 4  # assume 4/4
-    cur_denominator = 4  # assume 4/4
     time_signature_changed = True  # first measure needs to contain time signature
-
     cur_marker_name = ""
 
     cur_beat_start_ticks = 0.0  # current beat started at tick 0.0
-    next_beat_start_ticks = 4.0  # next beat starts at tick 4.0
+    next_beat_start_ticks = (4*numerator/denominator)  # next beat starts at tick
     cur_measure = 0  # start with measure 0
     gp5_beats.append(deepcopy(track_struct))  # append empty measure 0
 
@@ -206,42 +199,49 @@ def convert_midi2gp5(path_to_midi, force_drums=False):
         ticks = event[1] / ticks_per_quarter
 
         if ticks >= next_beat_start_ticks:
-            nn = cur_numerator if time_signature_changed else 0  # numerator
-            dd = cur_denominator if time_signature_changed else 0  # denominator
+            nn = numerator if time_signature_changed else 0  # numerator
+            dd = denominator if time_signature_changed else 0  # denominator
             time_signature_changed = False
+
+            # fill measure up with pauses
+            for t in range(len(gp5_tracks)):
+                past_notes = round(note_accuracy * (next_beat_start_ticks - cur_beat_start_ticks))
+                cur_gp5_beats = gp5_beats[cur_measure][t][0]
+                for b in range(len(cur_gp5_beats), past_notes):  # insert pauses
+                    cur_gp5_beats.append(beat([None] * 7, duration=gp5_duration, pause=True))
 
             # repeat_open repeat_close repeat_alt m_name marker_color maj_key min_key double_bar beam8notes triplet_feel
             gp5_measures.append(Measure(nn, dd, False, 0, 0, cur_marker_name, (0, 0, 0, 0), 0, 0, False, None, 0))
             cur_measure += 1
 
-            if event[0] != 'song_end':  # don't create new measure in the end TODO maybe needed for overflow notes?
+            if event[0] != 'song_end':  # don't create new measure in the end TODO write overflow notes at end
                 gp5_beats.append(deepcopy(track_struct))  # append empty measure 0
                 for j in range(len(gp5_note_overflows)):  # write overflowing notes
-                    of_cur_notes = min(gp5_note_overflows[j][0], int(4*cur_numerator/cur_denominator*G_ACCURACY))
+                    of_cur_notes = min(gp5_note_overflows[j][0], int(4*numerator/denominator*note_accuracy))
                     for b in range(of_cur_notes):
                         gp5_beats[cur_measure][j][0].append(
-                            beat(gp5_note_overflows[j][1], duration=G_GP5DURATION)
+                            beat(gp5_note_overflows[j][1], duration=gp5_duration)
                         )
                     gp5_note_overflows[j] = (gp5_note_overflows[j][0] - of_cur_notes, gp5_note_overflows[j][1])
 
                 cur_marker_name = ""  # reset name
                 cur_beat_start_ticks = next_beat_start_ticks
-                next_beat_start_ticks += (4*cur_numerator/cur_denominator)
+                next_beat_start_ticks += (4*numerator/denominator)
 
         if event[0] == 'note':  # start_time, duration, channel, note, velocity
             dur = event[2] / ticks_per_quarter  # duration of the midi note [in quarters]
             dur_remaining = next_beat_start_ticks - ticks  # remaining quarters that fit in the current measure
             dur_past = ticks - cur_beat_start_ticks  # past quarters in current measure before current note
-            n_notes = round(dur * G_ACCURACY)  # total notes to be written
-            remaining_notes = round(dur_remaining * G_ACCURACY)  # max notes that can be written to current measure
-            past_notes = round(dur_past * G_ACCURACY)  # note offset from measure start
+            n_notes = max(1, round(dur * note_accuracy))  # total notes to be written
+            remaining_notes = round(dur_remaining * note_accuracy)  # max notes that can be written to current measure
+            past_notes = round(dur_past * note_accuracy)  # note offset from measure start
             cur_notes = min(n_notes, remaining_notes)  # notes to write into current measure
 
-            # at this point every note should be exactly of length G_ACCURACY
+            # at this point every note should be exactly of length note_accuracy
             cur_track = track_mapping[track]  # real track index (without meta-tracks)
             cur_gp5_beats = gp5_beats[cur_measure][cur_track][0]
             for b in range(len(cur_gp5_beats), past_notes):  # insert pauses
-                cur_gp5_beats.append(beat([None]*7, duration=G_GP5DURATION, pause=True))
+                cur_gp5_beats.append(beat([None]*7, duration=gp5_duration, pause=True))
 
             overflow_notes = [None]*7
             is_tied = False  # first beat untied
@@ -259,40 +259,46 @@ def convert_midi2gp5(path_to_midi, force_drums=False):
                         # better: get all prev notes, list all possible positions for each note -> get most plausible
                         # right now a high E is written on lowest string, when followed by a low E -> impossible!
 
-                cur_gp5_beats[cur_beat_idx] = beat(notes, duration=G_GP5DURATION)
+                cur_gp5_beats[cur_beat_idx] = beat(notes, duration=gp5_duration)
                 is_tied = True  # following beats tied!
 
             gp5_note_overflows[cur_track] = [max(0, n_notes - cur_notes), overflow_notes]
-            print('{}[{}]: note:{}, dur:{}, chan:{}, v:{}'.format(ticks, cur_track, event[4], dur, event[3], event[5]))
+            if verbose:
+                print('{}[{}]: note:{}, dur:{}, chan:{}, v:{}'.format(
+                    ticks, cur_track, event[4], dur, event[3], event[5]))
         elif event[0] == 'set_tempo':
             tempo = round(1 / (event[2] / 60000000))
             init_tempo = tempo if ticks == 0 else init_tempo  # update init tempo if necessary
-            print('{}: set tempo: {}'.format(ticks, tempo))
+            if verbose:
+                print('{}: set tempo: {}'.format(ticks, tempo))
         elif event[0] == 'time_signature':  # event, time, nn, dd, metronome_clicks, speed (num of 32ths to the quarter)
-            cur_numerator = event[2]  # nn / numerator
-            cur_denominator = pow(2, event[3])  # dd / log_denominator -> 2=quarter, 3=eights, etc.
+            numerator = event[2]  # nn / numerator
+            denominator = pow(2, event[3])  # dd / log_denominator -> 2=quarter, 3=eights, etc.
             time_signature_changed = True
-            next_beat_start_ticks = cur_beat_start_ticks + (4 * cur_numerator / cur_denominator)
-            print('{}: time signature: {} {} {} {}'.format(ticks, event[2], event[3], event[4], event[5]))
+            next_beat_start_ticks = cur_beat_start_ticks + (4 * numerator / denominator)
+            if verbose:
+                print('{}: time signature: {} {} {} {}'.format(ticks, event[2], event[3], event[4], event[5]))
         elif event[0] == 'marker':
             cur_marker_name = event[2].decode('ISO-8859-1')  # decode('ascii','ignore') / decode('UTF-8')
-            print('{}: set marker: {}'.format(ticks, cur_marker_name))
-        elif event[0] == 'patch_change':  # instrument change
+            if verbose:
+                print('{}: set marker: {}'.format(ticks, cur_marker_name))
+        elif event[0] == 'patch_change' and verbose:  # instrument change
             print('{}: patch change: chan:{}, patch:{}'.format(ticks, event[2], event[3]))
         # elif event[0] == 'control_change':  # track volume, pan, usw. - not needed here
         #     print('{}: control change: chan:{}, control:{}, val:{}'.format(ticks, event[2],event[3],event[4]))
         # elif event[0] == 'pitch_wheel_change':  # bend-release - not needed here
         #     print('{}: pitch wheel change: chan:{}, pitch wheel:{}'.format(ticks, event[2], event[3]))
-        else:
+        elif verbose:
             print('{}: -- unknown event: {}'.format(ticks, event[0]))
 
-    for m in gp5_measures:
-        print(m)
+    if False and verbose:
+        for m in gp5_measures:
+            print(m)
 
-    collapse_beats(gp5_beats)
+    collapse_beats(gp5_beats, gp5_duration)
 
     assert len(gp5_measures) == len(gp5_beats), "ERR: Mlen {}!={}".format(len(gp5_measures), len(gp5_beats))
-    if False:
+    if False and verbose:
         for m in range(len(gp5_beats)):
             print('Measure {}'.format(m+1))
             assert len(gp5_tracks) == len(gp5_beats[m]), "ERR: Tlen {}!={}".format(len(gp5_tracks), len(gp5_beats[m]))
@@ -307,4 +313,4 @@ def convert_midi2gp5(path_to_midi, force_drums=False):
                             print("\t\t\t", n)
                     print("\t\t\t dur:{}, dot:{}, pause:{}, empty:{}".format(b.duration, b.dotted, b.pause, b.empty))
 
-    write_gp5(gp5_measures, gp5_tracks, gp5_beats, init_tempo, outfile="../../tmp/midi2gp5_output.gp5")
+    write_gp5(gp5_measures, gp5_tracks, gp5_beats, init_tempo, outfile=outfile)
