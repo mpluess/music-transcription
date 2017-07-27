@@ -205,7 +205,20 @@
 #             print('{} {} {}'.format(pitch, label, label_predicted))
 #     print('')
 
+# from music_transcription.string_fret_detection.sequence_string_fret_detection import SequenceStringFretDetection
+#
+# string_fret_detector = SequenceStringFretDetection(tuning=(64, 59, 55, 50, 45, 40), n_frets=24)
+# string_fret_detector.predict_strings_and_frets(None, [0.5, 1.0, 1.5], [{50, 60}, {45, 55}, {60, 70}])
+
 from music_transcription.string_fret_detection.sequence_string_fret_detection import SequenceStringFretDetection
 
-string_fret_detector = SequenceStringFretDetection(tuning=(64, 59, 55, 50, 45, 40), n_frets=24)
-string_fret_detector.predict_strings_and_frets(None, [0.5, 1.0, 1.5], [{50, 60}, {45, 55}, {60, 70}])
+onset_times_seconds = [0.5, 1.0, 1.5]
+list_of_pitch_sets = [{50, 60}, {45, 55}, {65, 75}]
+
+string_fret_detector = SequenceStringFretDetection((64, 59, 55, 50, 45, 40), 24)
+list_of_string_lists, list_of_fret_lists = string_fret_detector.predict_strings_and_frets(
+    None, onset_times_seconds, list_of_pitch_sets
+)
+print(list_of_string_lists)
+print(list_of_fret_lists)
+
