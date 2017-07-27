@@ -37,7 +37,7 @@ def tied_or_none(notes_arr):
     return result
 
 
-# takes a number of notes (of length G_GP5DURATION) which determine the duration of a note
+# takes a number of notes (of length gp5_duration) which determine the duration of a note
 # outputs an array of gp5-lengths that represent the same note duration
 # e.g. a note is 5 16ths long - output should be a quarter and a sixteenth, so [0, 2]
 def get_collapsed_lengths(num_notes, gp5_duration):

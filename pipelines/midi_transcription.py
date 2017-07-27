@@ -29,16 +29,16 @@ parser.add_argument('--path_to_gp5', help='Output path of GP5 file')
 parser.add_argument('-v', '--verbose', action='store_true', help='Print verbose output')
 
 args = parser.parse_args()
-assert os.path.isfile(args.path_to_midi), 'Recording file not found'
+assert os.path.isfile(args.path_to_midi), 'MIDI file not found'
 assert args.instrument_id > 0, 'Instrument ID is invalid, should be > 0'
 assert args.time_signature.count("/") == 1, 'Invalid time signature. Should be numerator/denominator'
 numerator, denominator = [int(x) for x in args.time_signature.split("/")]
 assert args.tempo > 0, 'Invalid tempo'
 
-recording_name = os.path.basename(args.path_to_midi).rstrip('.mid')
+filename = os.path.basename(args.path_to_midi).rstrip('.mid')
 
 if args.path_to_gp5 is None:
-    path_to_gp5 = recording_name + '.gp5'
+    path_to_gp5 = filename + '.gp5'
 else:
     path_to_gp5 = args.path_to_gp5
 
