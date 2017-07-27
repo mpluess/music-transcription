@@ -1,7 +1,7 @@
 from math import pow, log2
 from copy import deepcopy
 
-from music_transcription.fileformat.guitar_pro.utils import beat
+from music_transcription.fileformat.guitar_pro.utils import Beat
 
 
 def retrieve_markers(f):
@@ -55,10 +55,12 @@ def beats_equal(b1, b2):
     return b1.duration == b2.duration
 
 
-def compare(f1, f2, t1, t2, common_markers=[]):
+def compare(f1, f2, t1, t2, common_markers=None):
     # remap to zero based index
     t1 -= 1
     t2 -= 1
+    if common_markers is None:
+        common_markers = []
 
     empty_measure = [([], []), ([], []), ([], [])]
     measures = []
@@ -73,8 +75,8 @@ def compare(f1, f2, t1, t2, common_markers=[]):
             marker = f1.measures[m1].marker_name
             common_markers.remove(marker)
             while f2.measures[m2].marker_name != marker:  # skip f2 until marker, add all measures to track 3
-                current_measure[0][0].append(beat([None] * 7, empty=True))  # add empty quarter
-                current_measure[1][0].append(beat([None] * 7, empty=True))  # add empty quarter
+                current_measure[0][0].append(Beat([None] * 7, empty=True))  # add empty quarter
+                current_measure[1][0].append(Beat([None] * 7, empty=True))  # add empty quarter
                 current_measure[2] = f2.notes[m2][t2]  # current_measure[2][0] += f2.notes[m2][t2][0]
 
                 if f2.measures[m2].denominator > 0:
@@ -88,9 +90,9 @@ def compare(f1, f2, t1, t2, common_markers=[]):
             marker = f2.measures[m2].marker_name
             common_markers.remove(marker)
             while f1.measures[m1].marker_name != marker:  # skip f1 until marker, add all measures to track 2
-                current_measure[0][0].append(beat([None] * 7, empty=True))  # add empty quarter
+                current_measure[0][0].append(Beat([None] * 7, empty=True))  # add empty quarter
                 current_measure[1] = f1.notes[m1][t1]  # current_measure[1][0] += f1.notes[m1][t1][0]
-                current_measure[2][0].append(beat([None] * 7, empty=True))  # add empty quarter
+                current_measure[2][0].append(Beat([None] * 7, empty=True))  # add empty quarter
 
                 if f1.measures[m1].denominator > 0:
                     m1_signature = f1.measures[m1].numerator / f1.measures[m1].denominator
@@ -109,8 +111,8 @@ def compare(f1, f2, t1, t2, common_markers=[]):
             dur2 += pow(2, -b2.duration)
             if beats_equal(b1, b2):  # append to common track, append pauses to the others
                 current_measure[0][0].append(b1)
-                current_measure[1][0].append(beat([None] * 7, duration=b1.duration, pause=True))
-                current_measure[2][0].append(beat([None] * 7, duration=b1.duration, pause=True))
+                current_measure[1][0].append(Beat([None] * 7, duration=b1.duration, pause=True))
+                current_measure[2][0].append(Beat([None] * 7, duration=b1.duration, pause=True))
             else:  # append respective beats to their tracks
                 dur = pow(2, -b1.duration)
                 current_measure[1][0].append(b1)
@@ -136,7 +138,7 @@ def compare(f1, f2, t1, t2, common_markers=[]):
                     while x > dur:
                         x /= 2
                     dur -= x
-                    current_measure[0][0].append(beat([None] * 7, duration=int(-log2(x)), pause=True))
+                    current_measure[0][0].append(Beat([None] * 7, duration=int(-log2(x)), pause=True))
 
             idx1 += 1
             idx2 += 1
@@ -144,13 +146,13 @@ def compare(f1, f2, t1, t2, common_markers=[]):
 
         # read remaining beats if one of the track measures is longer than the other
         while idx1 < len(f1.notes[m1][t1][0]):
-            current_measure[0][0].append(beat([None] * 7, empty=True))  # add empty quarter
+            current_measure[0][0].append(Beat([None] * 7, empty=True))  # add empty quarter
             current_measure[1][0].append(f1.notes[m1][t1][0][idx1])
-            current_measure[2][0].append(beat([None] * 7, empty=True))  # add empty quarter
+            current_measure[2][0].append(Beat([None] * 7, empty=True))  # add empty quarter
             idx1 += 1
         while idx2 < len(f2.notes[m2][t2][0]):
-            current_measure[0][0].append(beat([None] * 7, empty=True))  # add empty quarter
-            current_measure[1][0].append(beat([None] * 7, empty=True))  # add empty quarter
+            current_measure[0][0].append(Beat([None] * 7, empty=True))  # add empty quarter
+            current_measure[1][0].append(Beat([None] * 7, empty=True))  # add empty quarter
             current_measure[2][0].append(f2.notes[m2][t2][0][idx2])
             idx2 += 1
 

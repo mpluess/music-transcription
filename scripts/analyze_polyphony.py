@@ -121,7 +121,7 @@ for path_to_wav, path_to_truth, dataset, truth_format in file_tuples:
     else:
         raise ValueError('unknown truth format')
 
-    last_onset_time = -1
+    last_onset_time = -1.0
     for onset_time in onsets:
         if onset_time - last_onset_time < MAX_POLYPHONY_DIFF:
             counts[dataset][path_to_wav]['poly'] += 1

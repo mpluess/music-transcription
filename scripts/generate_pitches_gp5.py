@@ -11,7 +11,7 @@ import os
 import re
 
 from music_transcription.fileformat.guitar_pro.gp5_writer import write_gp5
-from music_transcription.fileformat.guitar_pro.utils import beat, Measure, note, Track
+from music_transcription.fileformat.guitar_pro.utils import Beat, Measure, Note, Track
 from music_transcription.fileformat.truth import write_truth_file
 from music_transcription.string_fret_detection import plausibility
 
@@ -27,7 +27,7 @@ GP5_ENDING_REGEX = re.compile(r'\.gp5$')
 
 def get_string_fret_possibilities(pitch):
     for string, string_pitch in enumerate(TUNING):
-        if pitch >= string_pitch and pitch <= string_pitch + N_FRETS:
+        if string_pitch <= pitch <= string_pitch + N_FRETS:
             yield string, pitch - string_pitch
 
 
@@ -54,24 +54,24 @@ def generate_mono(filename='generated_mono.gp5', tempo=120, pitches=None):
                 print('pitch={}, string={}, fret={}'.format(pitch, string, fret))
 
                 if len(measures) == 0:
-                    measures.append(Measure(4, 4, False, 0, 0, "", (0, 0, 0, 0), 0, 0, False, (2, 2, 2, 2), 0))
+                    measures.append(Measure(4, 4, beam8notes=(2, 2, 2, 2)))
                 else:
-                    measures.append(Measure(0, 0, False, 0, 0, "", (0, 0, 0, 0), 0, 0, False, (0, 0, 0, 0), 0))
+                    measures.append(Measure())
 
                 beats_measure = create_measure()
-                beats_measure[0][0].append(beat([None] * 7, pause=True))
+                beats_measure[0][0].append(Beat([None] * 7, pause=True))
                 onset_time += quarter_note_seconds
 
                 notes = [None] * 7
-                notes[string] = note(fret)
-                beats_measure[0][0].append(beat(notes))
+                notes[string] = Note(fret)
+                beats_measure[0][0].append(Beat(notes))
                 onset_times.append(onset_time)
                 list_of_pitches.append([pitch])
                 onset_time += quarter_note_seconds
 
-                beats_measure[0][0].append(beat([None] * 7, pause=True))
+                beats_measure[0][0].append(Beat([None] * 7, pause=True))
                 onset_time += quarter_note_seconds
-                beats_measure[0][0].append(beat([None] * 7, pause=True))
+                beats_measure[0][0].append(Beat([None] * 7, pause=True))
                 onset_time += quarter_note_seconds
                 beats.append(beats_measure)
 
@@ -210,21 +210,21 @@ def create_measure_beats_measure_printable_notes(len_measures, notes, tempo):
     quarter_note_seconds = 60 / tempo
 
     if len_measures == 0:
-        measure = Measure(4, 4, False, 0, 0, "", (0, 0, 0, 0), 0, 0, False, (2, 2, 2, 2), 0)
+        measure = Measure(4, 4, beam8notes=(2, 2, 2, 2))
     else:
-        measure = Measure(0, 0, False, 0, 0, "", (0, 0, 0, 0), 0, 0, False, (0, 0, 0, 0), 0)
+        measure = Measure()
 
     beats_measure = create_measure()
-    beats_measure[0][0].append(beat([None] * 7, pause=True))
+    beats_measure[0][0].append(Beat([None] * 7, pause=True))
 
     # [0, 3, 2, -1, -1, -1] -> [note(0), note(3), note(2), None, None, None, None]
-    notes = [None if fret == -1 else note(fret) for fret in notes]
+    notes = [None if fret == -1 else Note(fret) for fret in notes]
     notes.append(None)
 
-    beats_measure[0][0].append(beat(notes))
+    beats_measure[0][0].append(Beat(notes))
 
-    beats_measure[0][0].append(beat([None] * 7, pause=True))
-    beats_measure[0][0].append(beat([None] * 7, pause=True))
+    beats_measure[0][0].append(Beat([None] * 7, pause=True))
+    beats_measure[0][0].append(Beat([None] * 7, pause=True))
 
     onset_after_seconds = quarter_note_seconds
     measure_duration_seconds = 4*quarter_note_seconds

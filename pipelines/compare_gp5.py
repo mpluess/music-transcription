@@ -1,3 +1,4 @@
+from copy import copy
 import os
 import argparse
 
@@ -37,10 +38,9 @@ assert [gp5file1.tracks[args.track1 - 1].channel, gp5file2.tracks[args.track2 - 
 
 common_markers = meta_comparison(gp5file1, gp5file2)
 measures, beats = compare(gp5file1, gp5file2, args.track1, args.track2, common_markers)
-tracks = [gp5file1.tracks[args.track1 - 1], gp5file1.tracks[args.track1 - 1], gp5file2.tracks[args.track2 - 1]]
+tracks = [gp5file1.tracks[args.track1 - 1], copy(gp5file1.tracks[args.track1 - 1]), gp5file2.tracks[args.track2 - 1]]
+tracks[0].name = 'common notes'
+tracks[1].name = 'differences file 1'
+tracks[2].name = 'differences file 2'
 
-
-write_gp5(measures, tracks, beats, tempo=gp5file1.tempo, outfile=out_path,
-          # header=Header('a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j'),
-          # lyrics=Lyrics(1, [(1, "I have no"), (4, "Idea what you talk"), (1, "about, wtf")]),
-          )
+write_gp5(measures, tracks, beats, tempo=gp5file1.tempo, outfile=out_path)

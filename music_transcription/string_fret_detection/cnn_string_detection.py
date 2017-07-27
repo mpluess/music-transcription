@@ -7,7 +7,7 @@ from zipfile import ZipFile
 from math import ceil
 
 from keras.callbacks import EarlyStopping
-from keras.layers import Activation, Concatenate, Conv1D, Dense, Dropout, Flatten, MaxPooling1D
+from keras.layers import Activation, Conv1D, Dense, Dropout, Flatten, MaxPooling1D
 from keras.models import Input, Model, model_from_json
 
 from sklearn.base import BaseEstimator, TransformerMixin
@@ -64,7 +64,7 @@ class CnnStringFeatureExtractor(BaseEstimator, TransformerMixin):
         for i in range(len(strings)):
             frame = 0
             cur_y = no_string
-            total_frames = ceil(samples[i].shape[0] / 441)
+            total_frames = int(ceil(samples[i].shape[0] / 441))
             y = np.empty((total_frames, 6), 'uint8')
             for j in range(len(onsets[i])):
                 frame_end_prev = max(0, int(onsets[i][j] * 100) - 3)  # TODO consider offset detection!

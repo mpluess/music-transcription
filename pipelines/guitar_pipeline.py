@@ -107,9 +107,9 @@ beats = beat_transformer.transform(args.path_to_wav, onset_times_seconds,
 measures = []
 for i, measure in enumerate(beats):
     if i == 0:
-        measures.append(Measure(args.beats_per_measure, 4, False, 0, 0, "", (0, 0, 0, 0), 0, 0, False, (2, 2, 2, 2), 0))
+        measures.append(Measure(args.beats_per_measure, 4, beam8notes=(2, 2, 2, 2)))
     else:
-        measures.append(Measure(0, 0, False, 0, 0, "", (0, 0, 0, 0), 0, 0, False, (0, 0, 0, 0), 0))
+        measures.append(Measure())
 
 tracks = [
     Track(
@@ -130,8 +130,4 @@ if args.path_to_gp5 is None:
 else:
     path_to_gp5 = args.path_to_gp5
 
-write_gp5(
-    measures, tracks, beats, tempo=tempo, outfile=path_to_gp5, header=Header(
-        track_title, '', '', '', '', '', '', '', '', ''
-    )
-)
+write_gp5(measures, tracks, beats, tempo=tempo, outfile=path_to_gp5, header=Header(title=track_title))

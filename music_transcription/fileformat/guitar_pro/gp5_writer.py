@@ -75,17 +75,19 @@ def _write_color(file, color):
 
 
 def _write_header(file, header):
-    # if header is not None:
-    #     for s in header:
-    #         _write_block_string(file, s)
-    # else:
-    #     for i in range(len(Header._fields) - 1):
-    #         _write_block_string(file, "")
+    if header is None:
+        header = Header()
+    _write_block_string(file, header.title)
+    _write_block_string(file, header.subtitle)
+    _write_block_string(file, header.interpret)
+    _write_block_string(file, header.album)
+    _write_block_string(file, header.author_words)
+    _write_block_string(file, header.author_music)
+    _write_block_string(file, header.copyright)
+    _write_block_string(file, header.tab_author)
+    _write_block_string(file, header.instructions)
 
-    for i in range(len(Header._fields) - 1):
-        _write_block_string(file, "" if header is None else header[i])
-
-    notes = [] if header is None else header.notes.split('\n')
+    notes = [] if header.notes == '' else header.notes.split('\n')
     _write_int(file, len(notes))
     for s in notes:
         _write_block_string(file, s)

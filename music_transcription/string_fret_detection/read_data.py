@@ -1,6 +1,5 @@
 from xml.etree import ElementTree
 from warnings import warn
-from sklearn.preprocessing import MultiLabelBinarizer
 
 import music_transcription.pitch_detection.read_data as pitch_read_data
 from music_transcription.read_data import DATASET_CORRECTIONS
@@ -65,6 +64,7 @@ def _read_onset_times_strings(path_to_xml, dataset, n_strings, onset_group_thres
                     raise ValueError('Unexpected XML element, expected event, got ' + event.tag)
                 onset_time = None
                 string = None
+                pitch = None
                 for event_child in event:
                     if event_child.tag == 'onsetSec':
                         onset_time = float(event_child.text) + DATASET_CORRECTIONS[dataset]

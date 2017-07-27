@@ -1,7 +1,7 @@
 from math import log2, pow
 
 from music_transcription.beat_transformation.abstract_beat_transformer import AbstractBeatTransformer
-from music_transcription.fileformat.guitar_pro.utils import beat, note
+from music_transcription.fileformat.guitar_pro.utils import Beat, Note
 
 
 class SimpleBeatTransformer(AbstractBeatTransformer):
@@ -48,8 +48,8 @@ class SimpleBeatTransformer(AbstractBeatTransformer):
             notes = [None] * 7
             notes_tied = [None] * 7
             for string, fret in zip(strings, frets):
-                notes[string] = note(fret)
-                notes_tied[string] = note(fret, tied=True)
+                notes[string] = Note(fret)
+                notes_tied[string] = Note(fret, tied=True)
 
             gp5_durations = self._split_beat_to_gp5_durations(beat_diff)
             while swap > 0:
@@ -61,7 +61,7 @@ class SimpleBeatTransformer(AbstractBeatTransformer):
             for gp5_duration in gp5_durations:
                 m_len += self._convert_duration_gp5_to_beats(gp5_duration)
 
-                current_measure[0][0].append(beat(notes_tied if tied else notes, duration=gp5_duration))
+                current_measure[0][0].append(Beat(notes_tied if tied else notes, duration=gp5_duration))
                 tied = True
                 if m_len >= self.beats_per_measure:
                     m_len = 0

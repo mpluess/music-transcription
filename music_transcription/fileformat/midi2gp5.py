@@ -5,7 +5,12 @@ from music_transcription.fileformat.MIDI import midi2score
 from music_transcription.fileformat.guitar_pro.gp5_writer import write_gp5
 from music_transcription.fileformat.guitar_pro.utils import *
 
-Event = namedtuple("Event", ['time', 'track', 'event'])
+
+class Event:
+    def __init__(self, time, track, event):
+        self.time = time
+        self.track = track
+        self.event = event
 
 meta_events = ['text_event', 'copyright_text_event', 'track_name', 'instrument_name', 'lyric', 'marker', 'cue_point', 'text_event_08', 'text_event_09', 'text_event_0a', 'text_event_0b', 'text_event_0c', 'text_event_0d', 'text_event_0e', 'text_event_0f', 'end_track', 'set_tempo', 'smpte_offset', 'time_signature', 'key_signature','sequencer_specific', 'raw_meta_event', 'sysex_f0', 'sysex_f7', 'song_position', 'song_select', 'tune_request']
 midi_events = ['note', 'key_after_touch', 'control_change', 'patch_change', 'channel_after_touch', 'pitch_wheel_change']  #'note_off', 'note_on',
@@ -62,7 +67,7 @@ def collapse_beats(beats, gp5_duration):
             cur_beat = None
             cur_beat_tied = None
             cur_count = 0
-            beats[x][y][0].append(beat([note(-2)]*7))  # dummy beat that triggers a change before the last beat
+            beats[x][y][0].append(Beat([Note(-2)]*7))  # dummy beat that triggers a change before the last beat
             for bt in beats[x][y][0]:
                 if cur_beat is None:
                     cur_beat = bt
@@ -74,7 +79,7 @@ def collapse_beats(beats, gp5_duration):
                     c_notes = cur_beat.notes
                     # print(cur_count, get_collapsed_lengths(cur_count, gp5_duration))
                     for z in get_collapsed_lengths(cur_count, gp5_duration):
-                        new_beats.append(beat(c_notes, duration=z, pause=cur_beat.pause, empty=cur_beat.empty))
+                        new_beats.append(Beat(c_notes, duration=z, pause=cur_beat.pause, empty=cur_beat.empty))
                         if cur_beat_tied is not None:
                             c_notes = cur_beat_tied.notes
                     cur_beat = bt
@@ -208,10 +213,10 @@ def convert_midi2gp5(path_to_midi, outfile, shortest_note=0.25, init_tempo=120, 
                 past_notes = round(note_accuracy * (next_beat_start_ticks - cur_beat_start_ticks))
                 cur_gp5_beats = gp5_beats[cur_measure][t][0]
                 for b in range(len(cur_gp5_beats), past_notes):  # insert pauses
-                    cur_gp5_beats.append(beat([None] * 7, duration=gp5_duration, pause=True))
+                    cur_gp5_beats.append(Beat([None] * 7, duration=gp5_duration, pause=True))
 
             # repeat_open repeat_close repeat_alt m_name marker_color maj_key min_key double_bar beam8notes triplet_feel
-            gp5_measures.append(Measure(nn, dd, False, 0, 0, cur_marker_name, (0, 0, 0, 0), 0, 0, False, None, 0))
+            gp5_measures.append(Measure(nn, dd, marker_name=cur_marker_name))
             cur_measure += 1
 
             if event[0] != 'song_end':  # don't create new measure in the end TODO write overflow notes at end
@@ -220,7 +225,7 @@ def convert_midi2gp5(path_to_midi, outfile, shortest_note=0.25, init_tempo=120, 
                     of_cur_notes = min(gp5_note_overflows[j][0], int(4*numerator/denominator*note_accuracy))
                     for b in range(of_cur_notes):
                         gp5_beats[cur_measure][j][0].append(
-                            beat(gp5_note_overflows[j][1], duration=gp5_duration)
+                            Beat(gp5_note_overflows[j][1], duration=gp5_duration)
                         )
                     gp5_note_overflows[j] = (gp5_note_overflows[j][0] - of_cur_notes, gp5_note_overflows[j][1])
 
@@ -241,25 +246,25 @@ def convert_midi2gp5(path_to_midi, outfile, shortest_note=0.25, init_tempo=120, 
             cur_track = track_mapping[track]  # real track index (without meta-tracks)
             cur_gp5_beats = gp5_beats[cur_measure][cur_track][0]
             for b in range(len(cur_gp5_beats), past_notes):  # insert pauses
-                cur_gp5_beats.append(beat([None]*7, duration=gp5_duration, pause=True))
+                cur_gp5_beats.append(Beat([None]*7, duration=gp5_duration, pause=True))
 
             overflow_notes = [None]*7
             is_tied = False  # first beat untied
             for cur_beat_idx in range(past_notes, past_notes + cur_notes):
                 if len(cur_gp5_beats) <= cur_beat_idx:  # insert new beat if needed
-                    cur_gp5_beats.append(beat([None] * 7))
+                    cur_gp5_beats.append(Beat([None] * 7))
                 assert len(cur_gp5_beats) > cur_beat_idx, "ERR: len:{}, idx:{}".format(len(cur_gp5_beats), cur_beat_idx)
                 notes = cur_gp5_beats[cur_beat_idx].notes
                 tuning = gp5_tracks[cur_track].tuning
                 for t in range(6, -1, -1):
                     if 0 <= tuning[t] <= event[4] and t < gp5_tracks[cur_track].nStrings and notes[t] is None:
-                        notes[t] = note(event[4] - tuning[t], tied=is_tied)
+                        notes[t] = Note(event[4] - tuning[t], tied=is_tied)
                         overflow_notes = notes
                         break  # TODO this doesnt make sure a note is written!
                         # better: get all prev notes, list all possible positions for each note -> get most plausible
                         # right now a high E is written on lowest string, when followed by a low E -> impossible!
 
-                cur_gp5_beats[cur_beat_idx] = beat(notes, duration=gp5_duration)
+                cur_gp5_beats[cur_beat_idx] = Beat(notes, duration=gp5_duration)
                 is_tied = True  # following beats tied!
 
             gp5_note_overflows[cur_track] = [max(0, n_notes - cur_notes), overflow_notes]
