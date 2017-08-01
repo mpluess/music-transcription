@@ -11,6 +11,7 @@ class SequenceStringFretDetection(AbstractStringFretDetector):
 
     def predict_strings_and_frets(self, path_to_wav_file, onset_times_seconds, list_of_pitch_sets):
         # TODO add variable to save finger position
+        # TODO chord probabilities: penalty for high frets on low strings
         def d(chord_a_, chord_b_):
             """Distance function of two chords from 0 (min distance) to 1 (max distance) """
 
@@ -97,13 +98,8 @@ class SequenceStringFretDetection(AbstractStringFretDetector):
         def to_discrete(f_):
             return int(f_)
 
-        # TODO Handle edge case where there is no possibility at all for a pitch set.
-        # - discard pitches until possible (-> print WARNING)   ---> pitch detector
         chords_per_pitch_set = [get_all_fret_possibilities(pitch_set, tuning=self.tuning, n_frets=self.n_frets)
                                 for pitch_set in list_of_pitch_sets]
-
-        # TODO Get proper chord probabilities from get_all_fret_possibilities
-        # - penalty for high frets (especially on low strings)  -> get_all_fret_possibilities ?
 
         # chord probabilities
         p_tab = [[get_chord_probability(c, self.n_frets) for c in chords] for chords in chords_per_pitch_set]
