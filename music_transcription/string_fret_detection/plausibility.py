@@ -10,7 +10,6 @@ def get_all_fret_possibilities(notes, tuning=(64, 59, 55, 50, 45, 40), n_frets=2
     for note in sorted(notes):
         # print(solutions)
         new_solutions = []
-        new_solutions_unlikely = []
         for sol in solutions:
             for i in range(len(tuning)):
                 if sol[i] == -1 and tuning[i] <= note <= tuning[i] + n_frets:
@@ -43,17 +42,46 @@ def get_all_fret_possibilities(notes, tuning=(64, 59, 55, 50, 45, 40), n_frets=2
                     # skip if more than one none-played string or if better solutions are available
                     if c_none > 1:
                         continue
-                    elif c_none > 0:  # append to unlikely solutions
-                        new_solutions_unlikely.append(new_sol)
-                        continue
+                    # elif c_none > 0:  # append to unlikely solutions
+                    #     new_solutions_unlikely.append(new_sol)
+                    #     continue
                     # skip if more than 4 different frets are pressed
                     n_different_frets = (np.unique(new_sol[min_idx:max_idx]) > 0).astype('int').sum()
                     if n_different_frets > 4:
                         continue
 
                     new_solutions.append(new_sol)
-        if len(new_solutions) > 0:
-            solutions = new_solutions
-        else:
-            solutions = new_solutions_unlikely
+        solutions = new_solutions
+
     return solutions
+
+
+def get_chord_probability(chord, n_frets=24):
+    played_frets = [fret for fret in chord if fret >= 0]
+    if len(played_frets) <= 1:
+        return 1.0
+
+    penalty = 1.0
+
+    non_empty_frets = [fret for fret in chord if fret > 0]
+    if len(non_empty_frets) == 0:
+        p_fret_diff = 1.0
+    else:
+        fret_diff = max(0, max(non_empty_frets) - min(non_empty_frets) - 2)
+        p_fret_diff = 1.0 - min(1.0, fret_diff/10)
+
+        if len(played_frets) > len(non_empty_frets):  # add penalty if there are empty strings
+            penalty = 1.0 - min(non_empty_frets) / n_frets / 2
+
+    min_idx = 0
+    while chord[min_idx] == -1 and min_idx < len(chord):
+        min_idx += 1
+    max_idx = len(chord)
+    while chord[max_idx - 1] == -1 and max_idx > 0:
+        max_idx -= 1
+    c_none = chord[min_idx:max_idx].count(-1)
+    # c_empty = new_sol[min_idx:max_idx].count(0)
+    for i in range(c_none):  # add (exponential) penalty for non-played strings in between
+        penalty /= 2
+
+    return p_fret_diff * penalty

@@ -21,7 +21,7 @@ from music_transcription.fileformat.guitar_pro.gp5_writer import write_gp5
 from music_transcription.onset_detection.cnn_onset_detection import CnnOnsetDetector
 from music_transcription.pitch_detection.cnn_cqt_pitch_detection import CnnCqtPitchDetector
 from music_transcription.pitch_detection.aubio_pitch_detection import AubioPitchDetector
-from music_transcription.string_fret_detection.simple_string_fret_detection import SimpleStringFretDetection
+from music_transcription.string_fret_detection.sequence_string_fret_detection import SequenceStringFretDetection
 from music_transcription.tempo_detection.aubio_tempo_detection import AubioTempoDetector
 
 # CONFIG
@@ -84,7 +84,7 @@ else:
     )
 list_of_pitch_sets = pitch_detector.predict_pitches(args.path_to_wav, onset_times_seconds)
 
-string_fret_detector = SimpleStringFretDetection(TUNING, N_FRETS)
+string_fret_detector = SequenceStringFretDetection(TUNING, N_FRETS)
 list_of_string_lists, list_of_fret_lists = string_fret_detector.predict_strings_and_frets(args.path_to_wav,
                                                                                           onset_times_seconds,
                                                                                           list_of_pitch_sets)
