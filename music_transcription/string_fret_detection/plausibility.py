@@ -57,16 +57,21 @@ def get_all_fret_possibilities(notes, tuning=(64, 59, 55, 50, 45, 40), n_frets=2
 
 
 def get_chord_probability(chord, n_frets=24):
-    played_frets = [fret for fret in chord if fret >= 0]
-    if len(played_frets) <= 1:
-        return 1.0
-
+    p_fret_diff = 1.0
     penalty = 1.0
 
+    # penalty for high frets on low strings
+    checks = min(3, chord.count(0) + chord.count(-1)) + 1
+    for i in range(1, checks):
+        if chord[len(chord) - i] > 10 + i * 4:  # > 14 for lowest, > 18 for 2nd, > 22 for 3rd string
+            penalty *= n_frets / (n_frets + chord[len(chord) - i] - (8 + i * 4))
+
+    played_frets = [fret for fret in chord if fret >= 0]
+    if len(played_frets) <= 1:
+        return p_fret_diff * penalty
+
     non_empty_frets = [fret for fret in chord if fret > 0]
-    if len(non_empty_frets) == 0:
-        p_fret_diff = 1.0
-    else:
+    if len(non_empty_frets) > 0:
         fret_diff = max(0, max(non_empty_frets) - min(non_empty_frets) - 2)
         p_fret_diff = 1.0 - min(1.0, fret_diff/10)
 
@@ -81,7 +86,7 @@ def get_chord_probability(chord, n_frets=24):
         max_idx -= 1
     c_none = chord[min_idx:max_idx].count(-1)
     # c_empty = new_sol[min_idx:max_idx].count(0)
-    for i in range(c_none):  # add (exponential) penalty for non-played strings in between
+    for i in range(c_none):  # add penalty for non-played strings in between
         penalty /= 2
 
     return p_fret_diff * penalty

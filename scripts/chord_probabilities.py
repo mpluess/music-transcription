@@ -7,26 +7,15 @@ from music_transcription.onset_detection.read_data import read_onset_times
 from music_transcription.pitch_detection.read_data import _read_onset_times_pitches
 from music_transcription.string_fret_detection.sequence_string_fret_detection import SequenceStringFretDetection
 
-# from music_transcription.onset_detection.cnn_onset_detection import CnnOnsetDetector
-# from music_transcription.pitch_detection.cnn_cqt_pitch_detection import CnnCqtPitchDetector
-#
-# onset_detector = CnnOnsetDetector.from_zip(
-#     os.path.join('..', 'models', 'onset_detection',
-#                  '20170627-3-channels_ds1-4_80-perc_adjusted-labels_with_config_thresh-0.05.zip')
-# )
-# pitch_detector = CnnCqtPitchDetector.from_zip(
-#     os.path.join('..', 'models', 'pitch_detection',
-#                  '20170718_1224_cqt_ds12391011_100-perc_optimized-params_proba-thresh-0.3.zip')
-# )
-#
 # path_to_wav = r'..\data\recordings\audio\instrumental_lead.wav'
-# onset_times_seconds = onset_detector.predict_onsets(path_to_wav)
-# list_of_pitch_sets = pitch_detector.predict_pitches(path_to_wav, onset_times_seconds)
+# path_to_truth = r'..\data\recordings\annotation\instrumental_lead.xml'
+# tempo = 144
+# shortest_note = 0.5  # 1/8
 
-path_to_wav = r'..\data\recordings\audio\instrumental_lead.wav'
-path_to_truth = r'..\data\recordings\annotation\instrumental_lead.xml'
-tempo = 144
-shortest_note = 0.5  # 1/8
+path_to_wav = r'..\data\recordings\audio\mim-riff1-short-slow.wav'
+path_to_truth = r'..\data\recordings\annotation\mim-riff1-short-slow.xml'
+tempo = 88
+shortest_note = 0.25  # 1/16
 
 tuning = (64, 59, 55, 50, 45, 40)
 n_frets = 24

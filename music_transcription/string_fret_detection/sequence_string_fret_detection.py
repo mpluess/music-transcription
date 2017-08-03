@@ -1,132 +1,107 @@
 import numpy as np
-from pyswarm import pso
+from copy import deepcopy
+from heapq import heappush, heappop
 
 from music_transcription.string_fret_detection.abstract_string_fret_detector import AbstractStringFretDetector
 from music_transcription.string_fret_detection.plausibility import get_all_fret_possibilities, get_chord_probability
 
 
 class SequenceStringFretDetection(AbstractStringFretDetector):
-    def __init__(self, tuning, n_frets):
+    def __init__(self, tuning, n_frets, complexity=50):
         super().__init__(tuning, n_frets)
+        self.complexity = max(complexity, len(tuning))  # number of possibilities to keep
 
-    def predict_strings_and_frets(self, path_to_wav_file, onset_times_seconds, list_of_pitch_sets):
-        # TODO add variable to save finger position
-        # TODO chord probabilities: penalty for high frets on low strings
-        def d(chord_a_, chord_b_):
-            """Distance function of two chords from 0 (min distance) to 1 (max distance) """
+    def get_fret_distance_with_update_fret_pos(self, chord, fret_pos, duration):
+        """calculates the fret distance from one chord to the next and updates finger/fret positions """
 
-            non_empty_frets_a = [fret_ for fret_ in chord_a_ if fret_ > 0]
-            non_empty_frets_b = [fret_ for fret_ in chord_b_ if fret_ > 0]
+        min_fret_a, max_fret_a = fret_pos
+        non_empty_frets = [fret for fret in chord if fret > 0]
 
-            # fret distance
-            min_fret_a = min_fret_b = 0
-            max_fret_a = max_fret_b = self.n_frets
+        if len(non_empty_frets) > 0:
+            min_fret_b = min(non_empty_frets)
+            max_fret_b = max(non_empty_frets)
+            padding = max(0, 3 - (max_fret_b - min_fret_b))
+            if min_fret_b > 14:  # on high frets one fret can easily be skipped -> extend range!
+                padding += 1
 
-            if len(non_empty_frets_a) > 0:
-                min_fret_a = min(non_empty_frets_a)
-                max_fret_a = max(non_empty_frets_a)
+            if max_fret_b > max_fret_a:  # slide-up
+                fret_pos_ = (max(0, min_fret_b - padding), max_fret_b)
+                return max_fret_b - max_fret_a, fret_pos_
+            if min_fret_b < min_fret_a:  # slide-down
+                fret_pos_ = (min_fret_b, min(self.n_frets, max_fret_b + padding))
+                return min_fret_a - min_fret_b, fret_pos_
 
-                for j in range(max_fret_a - min_fret_a, 3):  # 1 fret per finger e.g. 10,12 = 3 frets, add 1
-                    min_fret_a = max(min_fret_a - 1, 0)
-                    max_fret_a = min(max_fret_a + 1, self.n_frets)
-            if len(non_empty_frets_b) > 0:
-                min_fret_b = min(non_empty_frets_b)
-                max_fret_b = max(non_empty_frets_b)
+            fret_pos_ = (max(min_fret_a, min_fret_b - padding), min(max_fret_a, max_fret_b + padding))
+            return 0, fret_pos_
 
-                for j in range(max_fret_b - min_fret_b, 3):  # 1 fret per finger e.g. 10,12 = 3 frets, add 1
-                    min_fret_b = max(min_fret_b - 1, 0)
-                    max_fret_b = min(max_fret_b + 1, self.n_frets)
+        else:
+            # widen finger possibilities for every 0 stroke -- widen more for long pauses (+1 every 100ms)
+            fret_pos_ = (max(0, min_fret_a - duration), min(self.n_frets, max_fret_a + duration))
+            return min_fret_a * 0.2, fret_pos_  # penalty for empty strings (higher penalty for high chords)
 
-            fret_distance = 0
-            if len(non_empty_frets_a) > 0 and len(non_empty_frets_b) > 0:
-                # fret_distance = abs(min_fret_a - min_fret_b)
-                fret_distance = max(min_fret_a - min(non_empty_frets_b), max(non_empty_frets_b) - max_fret_a, 0)
-            elif len(non_empty_frets_a) > 0 or len(non_empty_frets_b) > 0:
-                # penalty for empty strings (higher penalty for high chords)
-                fret_distance = max(min_fret_a, min_fret_b) * 0.2
+    def get_string_distance(self, chord_a, chord_b):
+        """calculate string distance: 1.0 for maximum change, 0.0 for no change """
+        active_strings_a = [j for j in range(len(chord_a)) if chord_a[j] >= 0]
+        active_strings_b = [j for j in range(len(chord_b)) if chord_b[j] >= 0]
+        return np.abs(np.median(active_strings_a) - np.median(active_strings_b)) / (len(self.tuning) - 1)
 
-            # calculate string distance: 1.0 for maximum change, 0.0 for no change
-            active_strings_a = [j for j in range(len(chord_a_)) if chord_a_[j] >= 0]
-            active_strings_b = [j for j in range(len(chord_b_)) if chord_b_[j] >= 0]
-            string_distance = np.abs(np.median(active_strings_a) - np.median(active_strings_b)) / (len(chord_a_) - 1)
+    def get_next_chord_distance(self, chord_a, chord_b, fret_pos, duration_b):
+        """Distance function of two chords from 0.0 (min distance) to 1.0 (max distance) """
 
-            # reward similar chords
-            if len(non_empty_frets_a) == len(non_empty_frets_b):
-                reward = True
-                for j in range(1, len(non_empty_frets_a)):
-                    reward = reward and non_empty_frets_a[j-1] - non_empty_frets_a[j] == \
-                                        non_empty_frets_b[j-1] - non_empty_frets_b[j]
-                if reward:
-                    fret_distance /= 2
-                    string_distance /= 2
+        fret_distance, fret_pos_new = self.get_fret_distance_with_update_fret_pos(chord_b, fret_pos, duration_b)
+        string_distance = self.get_string_distance(chord_a, chord_b)
 
-            return fret_distance / self.n_frets * 0.75 + string_distance * 0.25
+        # reward similar chords
+        non_empty_frets_a = [fret for fret in chord_a if fret > 0]
+        non_empty_frets_b = [fret for fret in chord_b if fret > 0]
+        if len(non_empty_frets_a) == len(non_empty_frets_b):
+            reward = True
+            for j in range(1, len(non_empty_frets_a)):
+                reward = reward and non_empty_frets_a[j - 1] - non_empty_frets_a[j] == \
+                                    non_empty_frets_b[j - 1] - non_empty_frets_b[j]
+            if reward:
+                fret_distance /= 2
+                string_distance /= 2
 
-        def f(x, *args):
-            """Objective function for PSO
+        string_distance = min(1.0, (string_distance * 1.2)**1.5)  # lower impact on just 1 string change
+        # fret_distance = min(1.0, (fret_distance / self.n_frets * 1.4)**1.2)  # lower impact on just few fret change
+        fret_distance = min(1.0, fret_distance * 2 / 3 / self.n_frets)
+        return fret_distance * 0.8 + string_distance * 0.2, fret_pos_new
 
-            Parameters
-            ----------
-            x : list of float
-            args
+    def predict_strings_and_frets(self, path_to_wav_file, onset_times_s, list_of_pitch_sets):
+        # init priority queue
+        pq = []
+        for chord in get_all_fret_possibilities(list_of_pitch_sets[0], tuning=self.tuning, n_frets=self.n_frets):
+            p = get_chord_probability(chord, self.n_frets)
+            seq = [chord]
+            heappush(pq, (-p, seq, (0, self.n_frets)))  # use negative p for max heap
 
-            Returns
-            -------
-            float
-                1 - p because pyswarm always minimizes the objective function
-            """
+        for i in range(1, len(onset_times_s)):
+            duration_a = max(1, int((onset_times_s[i] - onset_times_s[i+1]) * 10)) if i < len(onset_times_s)-1 else 1
+            pq_new = []
+            chords = [(chord, get_chord_probability(chord, self.n_frets))
+                      for chord in get_all_fret_possibilities(list_of_pitch_sets[i], self.tuning, self.n_frets)]
 
-            p_tab_ = args[0]
-            p_d_tab_ = args[1]
+            n = self.complexity
+            while n > 0 and pq:  # pq is "True" as long as there are elements in it
+                p, seq, fret_pos = heappop(pq)
+                p *= -1  # invert back (for max heap)
+                last_chord = seq[len(seq) - 1]
+                for chord, p_chord in chords:
+                    p_c = p * p_chord
+                    d, fret_pos_c = self.get_next_chord_distance(last_chord, chord, fret_pos, duration_a)
+                    p_c *= 1.0 - d
+                    heappush(pq_new, (-p_c, deepcopy(seq) + [chord], fret_pos_c))
+                n -= 1
+            pq = pq_new
 
-            p = 1.0
-            # Multiply probabilities for all chords in the current sequence defined by x
-            for i_onset, i_chord in enumerate(x):
-                # PSO works with floats --> convert to int index
-                i_chord = to_discrete(i_chord)
-                p *= p_tab_[i_onset][i_chord]
-            # Multiply probabilities of distances between chords
-            for i_onset in range(len(x) - 1):
-                i_chord_a = to_discrete(x[i_onset])
-                i_chord_b = to_discrete(x[i_onset + 1])
-                # Example: i_onset 0 = numpy distance matrix between chord 0 and chord 1
-                p *= p_d_tab_[i_onset][i_chord_a][i_chord_b]
+        p_opt, optimal_chords, _ = heappop(pq)
+        p_opt *= -1  # invert back (for max heap)
+        print('p={}'.format(p_opt))
 
-            # Invert p because pyswarm minimizes the function value while we want to maximize p
-            return 1.0 - p
-
-        def to_discrete(f_):
-            return int(f_)
-
-        chords_per_pitch_set = [get_all_fret_possibilities(pitch_set, tuning=self.tuning, n_frets=self.n_frets)
-                                for pitch_set in list_of_pitch_sets]
-
-        # chord probabilities
-        p_tab = [[get_chord_probability(c, self.n_frets) for c in chords] for chords in chords_per_pitch_set]
-        p_d_tab = []  # list of distance matrices
-        for i in range(len(onset_times_seconds)-1):
-            chords_a = chords_per_pitch_set[i]
-            chords_b = chords_per_pitch_set[i+1]
-            d_matrix = []
-            for chord_a in chords_a:
-                d_matrix_row = []
-                for chord_b in chords_b:
-                    d_matrix_row.append(1.0 - d(chord_a, chord_b))
-                d_matrix.append(d_matrix_row)
-            p_d_tab.append(d_matrix)
-
-        # Lower bounds of the parameters (= chord indices) to be optimized
-        lb = [0.0] * len(chords_per_pitch_set)
-        # Upper bounds of the parameters.
-        # Example: 7 possibilites for pitch set 0 -> upper bound = 6.99 -> to_discrete(6.99) = max index = 6
-        ub = [len(chords) - 0.01 for chords in chords_per_pitch_set]
-        # Get the optimal sequence maximizing the sequence probability defined by f.
-        # Since pyswarm always minimizes the function, f returns the inverse of the probability (1-p).
-        # noinspection PyTypeChecker
-        xopt, fopt = pso(f, lb, ub, args=(p_tab, p_d_tab), debug=False, swarmsize=1000, maxiter=200)
-        print('p={}'.format(1.0 - fopt))
-
-        optimal_chords = [chords_per_pitch_set[i_onset][to_discrete(i_chord)] for i_onset, i_chord in enumerate(xopt)]
+        # chords_per_pitch_set = [get_all_fret_possibilities(pitch_set, tuning=self.tuning, n_frets=self.n_frets)
+        #                         for pitch_set in list_of_pitch_sets]
+        # optimal_chords = [chords_per_pitch_set[i_onset][to_discrete(i_chord)] for i_onset, i_chord in enumerate(xopt)]
         list_of_string_lists = []
         list_of_fret_lists = []
         for chords in optimal_chords:
