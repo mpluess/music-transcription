@@ -29,7 +29,7 @@ def print_pitches(pitches):
 
 pitches_overall = defaultdict(int)
 for active_datasets in [
-    {1, 2}, {3}, {9}, {10}, {11}
+    {1}, {2}, {3}, {9}, {10}, {11}
     # {7}
 ]:
     pitches = count_pitches(active_datasets)

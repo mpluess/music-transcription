@@ -221,4 +221,3 @@ list_of_string_lists, list_of_fret_lists = string_fret_detector.predict_strings_
 )
 print(list_of_string_lists)
 print(list_of_fret_lists)
-

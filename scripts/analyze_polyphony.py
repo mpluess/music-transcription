@@ -1,79 +1,9 @@
 """Count the number of files with at least one polyphonic onset as well as the number of polyphonic onsets."""
 
 from collections import defaultdict
-import os
-from os import listdir
-from os.path import isdir, isfile
-from warnings import warn
 from xml.etree import ElementTree
 
-DATA_DIR = r'..\data'
-
-
-def read_file_tuples(active_datasets):
-    dir_tuples = []
-    if 1 in active_datasets:
-        path_to_ds_1 = os.path.join(DATA_DIR, r'IDMT-SMT-GUITAR_V2\dataset1')
-        for guitar_desc in listdir(path_to_ds_1):
-            dir_tuples.append((
-                os.path.join(path_to_ds_1, guitar_desc, 'audio'),
-                os.path.join(path_to_ds_1, guitar_desc, 'annotation'),
-                1,
-            ))
-
-    if 2 in active_datasets:
-        dir_tuples.append((
-            os.path.join(DATA_DIR, r'IDMT-SMT-GUITAR_V2\dataset2\audio'),
-            os.path.join(DATA_DIR, r'IDMT-SMT-GUITAR_V2\dataset2\annotation'),
-            2,
-        ))
-    if 3 in active_datasets:
-        dir_tuples.append((
-            os.path.join(DATA_DIR, r'IDMT-SMT-GUITAR_V2\dataset3\audio'),
-            os.path.join(DATA_DIR, r'IDMT-SMT-GUITAR_V2\dataset3\annotation'),
-            3,
-        ))
-
-    file_tuples = []
-    for audio_dir, annotation_dir, ds in dir_tuples:
-        for wav_file in listdir(audio_dir):
-            path_to_wav = os.path.join(audio_dir, wav_file)
-            if wav_file.endswith('.wav'):
-                path_to_xml = os.path.join(annotation_dir, wav_file.replace('.wav', '.xml'))
-                if isfile(path_to_xml):
-                    file_tuples.append((path_to_wav, path_to_xml, ds, 'xml'))
-                else:
-                    warn('Skipping ' + wav_file + ', no truth found.')
-            else:
-                warn('Skipping ' + path_to_wav + ', not a .wav file.')
-
-    if 4 in active_datasets:
-        for path_to_ds in [
-            os.path.join(DATA_DIR, r'IDMT-SMT-GUITAR_V2\dataset4\Career SG'),
-            os.path.join(DATA_DIR, r'IDMT-SMT-GUITAR_V2\dataset4\Ibanez 2820')
-        ]:
-            for tempo in listdir(path_to_ds):
-                path_to_tempo = os.path.join(path_to_ds, tempo)
-                for genre in listdir(path_to_tempo):
-                    path_to_genre = os.path.join(path_to_tempo, genre)
-                    path_to_audio = os.path.join(path_to_genre, 'audio')
-                    for wav_file in listdir(path_to_audio):
-                        path_to_wav = os.path.join(path_to_audio, wav_file)
-                        if wav_file.endswith('.wav'):
-                            path_to_onsets = os.path.join(path_to_genre, 'annotation', 'onsets')
-                            if isdir(path_to_onsets):
-                                path_to_csv = os.path.join(path_to_onsets, wav_file.replace('.wav', '.csv'))
-                                if isfile(path_to_csv):
-                                    file_tuples.append((path_to_wav, path_to_csv, 4, 'csv'))
-                                else:
-                                    # TODO fallback to other formats
-                                    warn('Skipping ' + path_to_wav + ', no truth csv found.')
-                            else:
-                                warn('Skipping ' + path_to_wav + ', no onset folder.')
-                        else:
-                            warn('Skipping ' + path_to_wav + ', not a .wav file.')
-
-    return file_tuples
+from music_transcription.read_data import get_wav_and_truth_files
 
 
 def get_onsets_csv(path_to_csv):
@@ -102,10 +32,10 @@ def get_onsets_xml(path_to_xml):
 
     return sorted(onsets)
 
-active_datasets = {1, 2, 3, 4}
+active_datasets = {1, 2, 3, 4, 9, 10, 11}
 MAX_POLYPHONY_DIFF = 0.05
 
-file_tuples = read_file_tuples(active_datasets)
+wav_file_paths, truth_dataset_format_tuples = get_wav_and_truth_files(active_datasets)
 
 # print(len(file_tuples))
 # keyfunc = lambda t: t[2]
@@ -113,7 +43,7 @@ file_tuples = read_file_tuples(active_datasets)
 #     print('{} {}'.format(k, len(list(g))))
 
 counts = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
-for path_to_wav, path_to_truth, dataset, truth_format in file_tuples:
+for path_to_wav, (path_to_truth, dataset, truth_format) in zip(wav_file_paths, truth_dataset_format_tuples):
     if truth_format == 'csv':
         onsets = get_onsets_csv(path_to_truth)
     elif truth_format == 'xml':
@@ -121,15 +51,14 @@ for path_to_wav, path_to_truth, dataset, truth_format in file_tuples:
     else:
         raise ValueError('unknown truth format')
 
-    last_onset_time = -1.0
-    for onset_time in onsets:
-        if onset_time - last_onset_time < MAX_POLYPHONY_DIFF:
+    for i in range(len(onsets)):
+        if i > 0 and onsets[i] - onsets[i - 1] < MAX_POLYPHONY_DIFF:
+            counts[dataset][path_to_wav]['poly'] += 1
+        elif i < len(onsets) - 1 and onsets[i + 1] - onsets[i] < MAX_POLYPHONY_DIFF:
             counts[dataset][path_to_wav]['poly'] += 1
         else:
             counts[dataset][path_to_wav]['mono'] += 1
-        last_onset_time = onset_time
 
-print(len(file_tuples))
 for dataset in sorted(active_datasets):
     print(dataset)
     print('n_files={}'.format(len(counts[dataset].keys())))
