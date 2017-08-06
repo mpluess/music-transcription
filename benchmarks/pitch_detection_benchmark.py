@@ -27,8 +27,8 @@ def predict_print_metrics(pitch_detector_, wav_file_paths_, list_of_onset_times_
 #     wav_file_paths, truth_dataset_format_tuples, test_size=0.2, random_state=42
 # )
 
-# active_datasets = {5}
-active_datasets = {1, 2}
+active_datasets = {5}
+# active_datasets = {1, 2}
 wav_file_paths_test, truth_dataset_format_tuples_test = get_wav_and_truth_files(active_datasets)
 
 # wav_file_paths_test = [r'..\data\recordings\audio\instrumental_lead.wav']
@@ -48,16 +48,16 @@ data_test, y_test, wav_file_paths_test, truth_dataset_format_tuples_test = read_
 assert len(wav_file_paths_test) == len(data_test[1])
 
 # Load your pitch detector here
-# from music_transcription.pitch_detection.cnn_cqt_pitch_detection import CnnCqtPitchDetector
-# pitch_detector = CnnCqtPitchDetector.from_zip('../models/pitch_detection/20170725_cqt_ds12391011_80-perc.zip')
-# assert sample_rate == pitch_detector.feature_extractor.sample_rate
-# assert subsampling_step == pitch_detector.config['subsampling_step']
-# assert min_pitch == pitch_detector.config['min_pitch']
-# assert max_pitch == pitch_detector.config['max_pitch']
-# assert onset_group_threshold_seconds == pitch_detector.config['onset_group_threshold_seconds']
+from music_transcription.pitch_detection.cnn_cqt_pitch_detection import CnnCqtPitchDetector
+pitch_detector = CnnCqtPitchDetector.from_zip('../models/pitch_detection/20170718_1224_cqt_ds12391011_100-perc_optimized-params_proba-thresh-0.3.zip')
+assert sample_rate == pitch_detector.feature_extractor.sample_rate
+assert subsampling_step == pitch_detector.config['subsampling_step']
+assert min_pitch == pitch_detector.config['min_pitch']
+assert max_pitch == pitch_detector.config['max_pitch']
+assert onset_group_threshold_seconds == pitch_detector.config['onset_group_threshold_seconds']
 
-from music_transcription.pitch_detection.aubio_pitch_detection import AubioPitchDetector
-pitch_detector = AubioPitchDetector()
+# from music_transcription.pitch_detection.aubio_pitch_detection import AubioPitchDetector
+# pitch_detector = AubioPitchDetector()
 
 # Predict
 predict_print_metrics(pitch_detector, wav_file_paths_test, data_test[1], y_test, min_pitch, max_pitch)

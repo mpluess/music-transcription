@@ -760,13 +760,18 @@ class CnnCqtPitchDetector(AbstractPitchDetector):
                 max_index = np.where(np.logical_and(probas > max_proba - epsilon, probas < max_proba + epsilon))[0][0]
                 labels[max_index] = 1
 
+        # Make sure all chords are actually playable. If not, remove pitches till they are.
         for probas, labels in zip(proba_matrix, y):
             pitch_set = self.multilabel_matrix_to_pitch_sets(labels.reshape(1, -1))
-            while len(get_all_fret_possibilities(pitch_set[0])) == 0:
-                min_index = min(zip(np.extract(labels, probas), labels.nonzero()[0]))
+            while len(get_all_fret_possibilities(pitch_set[0], tuning=self.config['tuning'], n_frets=self.config['n_frets'])) == 0:
+                # Create (proba, index) tuples of all pitches with label 1.
+                # Get the index of the one with minimum proba.
+                # Remove this pitch from the chord.
+                min_proba, min_index = min(zip(np.extract(labels, probas), labels.nonzero()[0]), key=lambda t: t[0])
                 labels[min_index] = 0
                 warn('no plausible transcription for pitches [{}], discarding pitch: {}'.format(
-                    pitch_set, min_index + self.config['min_pitch']))
+                    pitch_set, min_index + self.config['min_pitch']
+                ))
 
         return y
 
