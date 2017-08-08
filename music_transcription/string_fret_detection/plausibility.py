@@ -22,7 +22,7 @@ def get_all_fret_possibilities(notes, tuning=(64, 59, 55, 50, 45, 40), n_frets=2
                             if 0 < ns < min_fret:
                                 min_fret = ns
 
-                        # calculate finger spread width in mm (formula for 25.5 inch scale (648mm))
+                        # calculate approximate finger spread width in mm
                         distance_mm = 0
                         for f in range(min_fret, max_fret):
                             distance_mm += FIRST_FRET_WIDTH / FRET_WIDTH_DECREASE ** f
