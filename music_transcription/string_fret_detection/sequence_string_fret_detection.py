@@ -97,7 +97,6 @@ class SequenceStringFretDetection(AbstractStringFretDetector):
 
         p_opt, optimal_chords, _ = heappop(pq)
         p_opt *= -1  # invert back (for max heap)
-        print('p={}'.format(p_opt))
 
         # chords_per_pitch_set = [get_all_fret_possibilities(pitch_set, tuning=self.tuning, n_frets=self.n_frets)
         #                         for pitch_set in list_of_pitch_sets]
