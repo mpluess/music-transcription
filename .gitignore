@@ -3,3 +3,4 @@ data/
 .ipynb_checkpoints/
 __pycache__/
 tmp/
+models/pitch_detection/20170806_cqt_ds12391011_80-perc.zip
