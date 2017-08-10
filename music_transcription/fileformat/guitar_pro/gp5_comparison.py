@@ -52,10 +52,10 @@ def beats_equal(b1, b2, tuning):
     n1 = []
     n2 = []
     for i in range(7):
-        if b1.notes[i] > -1:
-            n1.append(b1.notes[i] + tuning[i])
-        if b2.notes[i] > -1:
-            n2.append(b2.notes[i] + tuning[i])
+        if b1.notes[i] is not None:
+            n1.append(b1.notes[i].fret + tuning[i] + (100 if b1.notes[i].tied else 0))
+        if b2.notes[i] is not None:
+            n2.append(b2.notes[i].fret + tuning[i] + (100 if b2.notes[i].tied else 0))
     if sorted(n1) != sorted(n2):
         return False
     return b1.duration == b2.duration
