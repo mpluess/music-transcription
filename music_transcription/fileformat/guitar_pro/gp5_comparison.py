@@ -48,14 +48,27 @@ def meta_comparison(f1, f2):
     return common_markers
 
 
-def beats_equal(b1, b2):
+def beats_equal(b1, b2, tuning):
+    n1 = []
+    n2 = []
+    for i in range(7):
+        if b1.notes[i] > -1:
+            n1.append(b1.notes[i] + tuning[i])
+        if b2.notes[i] > -1:
+            n2.append(b2.notes[i] + tuning[i])
+    if sorted(n1) != sorted(n2):
+        return False
+    return b1.duration == b2.duration
+
+
+def beats_equal_positions(b1, b2):
     for i in range(7):
         if b1.notes[i] != b2.notes[i]:
             return False
     return b1.duration == b2.duration
 
 
-def compare(f1, f2, t1, t2, common_markers=None):
+def compare(f1, f2, t1, t2, tuning=(64, 59, 55, 50, 45, 40), common_markers=None, compare_positions=False):
     # remap to zero based index
     t1 -= 1
     t2 -= 1
@@ -109,7 +122,8 @@ def compare(f1, f2, t1, t2, common_markers=None):
             b2 = f2.notes[m2][t2][0][idx2]
             dur1 += pow(2, -b1.duration)
             dur2 += pow(2, -b2.duration)
-            if beats_equal(b1, b2):  # append to common track, append pauses to the others
+            eq = beats_equal_positions(b1, b2) if compare_positions else beats_equal(b1, b2, tuning)
+            if eq:  # append to common track, append pauses to the others
                 current_measure[0][0].append(b1)
                 current_measure[1][0].append(Beat([None] * 7, duration=b1.duration, pause=True))
                 current_measure[2][0].append(Beat([None] * 7, duration=b1.duration, pause=True))
