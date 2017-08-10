@@ -8,8 +8,7 @@ from music_transcription.tempo_detection.simple_tempo_detection import SimpleTem
 # CONFIG
 DATA_DIR = r'..\data'
 
-onset_detector = CnnOnsetDetector.from_zip(
-    '../models/onset_detection/20170627-3-channels_ds1-4_80-perc_adjusted-labels_with_config_thresh-0.05.zip')
+onset_detector = CnnOnsetDetector.from_zip('../models/onset_detection/ds1-4_100-perc.zip')
 
 aubio_tempo_detector = AubioTempoDetector()
 simple_tempo_detector = SimpleTempoDetector()

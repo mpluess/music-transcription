@@ -1,7 +1,11 @@
+import argparse
 from copy import copy
 import os
-import argparse
+import sys
 
+module_path = os.path.abspath('..')
+if module_path not in sys.path:
+    sys.path.append(module_path)
 from music_transcription.fileformat.guitar_pro.gp5_reader import GP5File
 from music_transcription.fileformat.guitar_pro.gp5_writer import write_gp5
 from music_transcription.fileformat.guitar_pro.gp5_comparison import meta_comparison, compare

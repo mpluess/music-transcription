@@ -61,9 +61,6 @@ def write_xml(path_to_xml, onsets):
 wav_path = r'..\data\recordings\audio\instrumental_rythm2.wav'
 xml_path = r'..\data\recordings\annotation\instrumental_rythm2.xml'
 
-onset_detector = CnnOnsetDetector.from_zip(
-    '../models/onset_detection/20170627-3-channels_ds1-4_80-perc_adjusted-labels_with_config_thresh-0.05.zip')
-
+onset_detector = CnnOnsetDetector.from_zip('../models/onset_detection/ds1-4_100-perc.zip')
 onset_times_seconds = onset_detector.predict_onsets(wav_path)
-
 write_xml(xml_path, onset_times_seconds)

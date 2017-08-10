@@ -1,5 +1,10 @@
-import os
 import argparse
+import os
+import sys
+
+module_path = os.path.abspath('..')
+if module_path not in sys.path:
+    sys.path.append(module_path)
 from music_transcription.fileformat.midi2gp5 import convert_midi2gp5
 
 SHORTEST_NOTES = {

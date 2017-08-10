@@ -237,10 +237,63 @@
 # labels[min_index] = 0
 # print(labels)
 
-import numpy as np
-labels = np.array([0, 1, 1, 0])
-probas = np.array([0.2, 0.6, 0.8, 0.25])
-min_proba, min_index = min(zip(np.extract(labels, probas), labels.nonzero()[0]), key=lambda t: t[0])
-print(min_index)
-labels[min_index] = 0
-print(labels)
+# import numpy as np
+# labels = np.array([0, 1, 1, 0])
+# probas = np.array([0.2, 0.6, 0.8, 0.25])
+# min_proba, min_index = min(zip(np.extract(labels, probas), labels.nonzero()[0]), key=lambda t: t[0])
+# print(min_index)
+# labels[min_index] = 0
+# print(labels)
+
+# from music_transcription.read_data import get_wav_and_truth_files
+# from music_transcription.tempo_detection.aubio_tempo_detection import AubioTempoDetector
+# aubio_tempo_detector = AubioTempoDetector()
+# wav_file_paths, _ = get_wav_and_truth_files({2}, data_dir=r'..\..\data')
+# bpms = []
+# for path_to_wav in wav_file_paths:
+#     bpms.append(aubio_tempo_detector.predict(path_to_wav, None))
+# print(len(bpms))
+# print(sum(bpms) / len(bpms))
+
+# from music_transcription.onset_detection.read_data import read_onset_times
+# from music_transcription.read_data import get_wav_and_truth_files
+#
+#
+# def analyze_onset_distances(datasets=None, truth_dataset_format_tuples=None):
+#     assert datasets is not None or truth_dataset_format_tuples is not None
+#
+#     if truth_dataset_format_tuples is None:
+#         _, truth_dataset_format_tuples = get_wav_and_truth_files(datasets, data_dir=r'..\..\data')
+#     onset_distances = []
+#     for (path_to_truth, dataset, truth_format) in truth_dataset_format_tuples:
+#         onset_times = read_onset_times(path_to_truth, dataset, truth_format, 0.05)
+#         for i in range(len(onset_times) - 1):
+#             onset_distances.append(onset_times[i + 1] - onset_times[i])
+#     print('len: {}'.format(len(onset_distances)))
+#     print('mean: {}'.format(sum(onset_distances) / len(onset_distances)))
+#     print('min: {}'.format(min(onset_distances)))
+#
+# # analyze_onset_distances(datasets={1, 2, 3, 9, 10, 11})
+# analyze_onset_distances(truth_dataset_format_tuples=[(r'..\..\data\recordings\annotation\instrumental_rhythm2.xml', 5, 'xml')])
+
+# Find best / worst files
+# metrics = []
+# for path_to_wav, (path_to_truth, dataset, format) in zip(wav_file_paths_test, truth_dataset_format_tuples_test):
+#     if dataset == 2:
+#         data, y, wav_file_paths, truth_dataset_format_tuples = read_data_y(
+#             [path_to_wav], [(path_to_truth, dataset, format)],
+#             sample_rate, subsampling_step, min_pitch, max_pitch,
+#             onset_group_threshold_seconds=onset_group_threshold_seconds
+#         )
+#         if len(data[0]) > 0:
+#             assert len(data[1]) == 1
+#             y_predicted = pitch_detector.predict(wav_file_paths[0], data[1][0])
+#             metrics.append((wav_file_paths[0], round(sklearn.metrics.accuracy_score(y, y_predicted), 4)))
+#
+# for path_to_wav, accuracy in sorted(metrics, key=lambda t: t[1]):
+#     print('{} {}'.format(accuracy, path_to_wav))
+
+# for pitch_set_y, pitch_set_y_predicted in zip(pitch_detector_.multilabel_matrix_to_pitch_sets(y_),
+#                                               pitch_detector_.multilabel_matrix_to_pitch_sets(y_predicted)):
+#     print(sorted(pitch_set_y))
+#     print(sorted(pitch_set_y_predicted))

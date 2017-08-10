@@ -27,12 +27,15 @@ def predict_print_metrics(pitch_detector_, wav_file_paths_, list_of_onset_times_
 #     wav_file_paths, truth_dataset_format_tuples, test_size=0.2, random_state=42
 # )
 
-active_datasets = {5}
-# active_datasets = {1, 2}
-wav_file_paths_test, truth_dataset_format_tuples_test = get_wav_and_truth_files(active_datasets)
+# monophonic
+# wav_file_paths_test = [r'..\data\recordings\audio\instrumental_lead.wav',
+#                        r'..\data\recordings\audio\mim-riff1-short-slow.wav']
+# truth_dataset_format_tuples_test = [(r'..\data\recordings\annotation\instrumental_lead.xml', 5, 'xml'),
+#                                     (r'..\data\recordings\annotation\mim-riff1-short-slow.xml', 5, 'xml')]
 
-# wav_file_paths_test = [r'..\data\recordings\audio\instrumental_lead.wav']
-# truth_dataset_format_tuples_test = [(r'..\data\recordings\annotation\instrumental_lead.xml', 5, 'xml')]
+# polyphonic
+wav_file_paths_test = [r'..\data\recordings\audio\instrumental_rhythm2.wav']
+truth_dataset_format_tuples_test = [(r'..\data\recordings\annotation\instrumental_rhythm2.xml', 5, 'xml')]
 
 sample_rate = 44100
 subsampling_step = 1
@@ -49,7 +52,7 @@ assert len(wav_file_paths_test) == len(data_test[1])
 
 # Load your pitch detector here
 from music_transcription.pitch_detection.cnn_cqt_pitch_detection import CnnCqtPitchDetector
-pitch_detector = CnnCqtPitchDetector.from_zip('../models/pitch_detection/20170718_1224_cqt_ds12391011_100-perc_optimized-params_proba-thresh-0.3.zip')
+pitch_detector = CnnCqtPitchDetector.from_zip('../models/pitch_detection/cqt_ds12391011_100-perc_proba-thresh-0.3.zip')
 assert sample_rate == pitch_detector.feature_extractor.sample_rate
 assert subsampling_step == pitch_detector.config['subsampling_step']
 assert min_pitch == pitch_detector.config['min_pitch']

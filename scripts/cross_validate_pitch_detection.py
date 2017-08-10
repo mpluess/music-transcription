@@ -36,9 +36,6 @@ def predict(pitch_detector, wav_file_paths, truth_dataset_format_tuples,
                                 target_names=[str(pitch) for pitch in range(min_pitch, max_pitch + 1)]))
 
 DATASETS_CV = {1, 2}
-# DATASETS_ADDITIONAL = {3}
-# DATASETS_ADDITIONAL = {3, 6}
-# DATASETS_ADDITIONAL = {3, 6, 7}
 DATASETS_ADDITIONAL = {3, 9, 10, 11}
 
 sample_rate = 44100
@@ -50,12 +47,8 @@ onset_group_threshold_seconds = 0.05
 wav_file_paths_cv, truth_dataset_format_tuples_cv = get_wav_and_truth_files(DATASETS_CV)
 wav_file_paths_additional, truth_dataset_format_tuples_additional = get_wav_and_truth_files(DATASETS_ADDITIONAL)
 
-k_fold = KFold(n_splits=5, shuffle=True, random_state=42)
+k_fold = KFold(n_splits=10, shuffle=True, random_state=42)
 for k, (train_indices, test_indices) in enumerate(k_fold.split(wav_file_paths_cv)):
-    # if k > 0:
-    #     print('Skipping split {}'.format(k))
-    #     continue
-
     wav_file_paths_train = [wav_file_paths_cv[i] for i in train_indices] + wav_file_paths_additional
     truth_dataset_format_tuples_train = [truth_dataset_format_tuples_cv[i] for i in train_indices] + truth_dataset_format_tuples_additional
     wav_file_paths_test = [wav_file_paths_cv[i] for i in test_indices]

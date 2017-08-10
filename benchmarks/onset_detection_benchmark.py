@@ -19,13 +19,12 @@ onset_group_threshold_seconds = 0.05
 #     wav_file_paths, truth_dataset_format_tuples, test_size=0.2, random_state=42
 # )
 
-# active_datasets = {5}
-# wav_file_paths_test, truth_dataset_format_tuples_test = get_wav_and_truth_files(active_datasets)
+wav_file_paths_test = [r'..\data\recordings\audio\instrumental_lead.wav',
+                       r'..\data\recordings\audio\mim-riff1-short-slow.wav']
+truth_dataset_format_tuples_test = [(r'..\data\recordings\annotation\instrumental_lead.xml', 5, 'xml'),
+                                    (r'..\data\recordings\annotation\mim-riff1-short-slow.xml', 5, 'xml')]
 
-wav_file_paths_test = [r'..\data\recordings\audio\instrumental_lead.wav']
-truth_dataset_format_tuples_test = [(r'..\data\recordings\annotation\instrumental_lead.xml', 5, 'xml')]
-
-onset_detector = CnnOnsetDetector.from_zip('../models/onset_detection/20170627-3-channels_ds1-4_80-perc_adjusted-labels_with_config_thresh-0.05.zip')
+onset_detector = CnnOnsetDetector.from_zip('../models/onset_detection/ds1-4_100-perc.zip')
 assert onset_group_threshold_seconds == onset_detector.config['onset_group_threshold_seconds']
 
 metrics_2_aggr = Metrics(0, 0, 0)

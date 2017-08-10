@@ -14,7 +14,11 @@ Parts:
 
 import argparse
 import os
+import sys
 
+module_path = os.path.abspath('..')
+if module_path not in sys.path:
+    sys.path.append(module_path)
 from music_transcription.beat_transformation.simple_beat_transformation import SimpleBeatTransformer
 from music_transcription.fileformat.guitar_pro.utils import Header, Measure, Track
 from music_transcription.fileformat.guitar_pro.gp5_writer import write_gp5
@@ -46,18 +50,18 @@ SHORTEST_NOTES = {
 
 parser = argparse.ArgumentParser(description='Transcribe guitar recording (WAV) to notes and tabs (GP5)')
 parser.add_argument('path_to_wav', help='Path to guitar recording in WAV format')
-parser.add_argument('--model_dir', default=os.path.join('..', 'models'), help='Path to models directory')
-parser.add_argument('--musical_texture', default='poly', choices=['mono', 'poly'],
+parser.add_argument('-d', '--model_dir', default=os.path.join('..', 'models'), help='Path to models directory')
+parser.add_argument('-m', '--musical_texture', default='poly', choices=['mono', 'poly'],
                     help='Is your recording strictly monophonic or does it also contain polyphonic chords?')
-parser.add_argument('--tempo', type=int, default=TEMPO_DEFAULT,
+parser.add_argument('-t', '--tempo', type=int, default=TEMPO_DEFAULT,
                     help="Tempo of the recording in BPM. We'll try to determine this automatically if not set.")
-parser.add_argument('--beats_per_measure', type=int, default=4,
+parser.add_argument('-b', '--beats_per_measure', type=int, default=4,
                     help='Time signature / number of quarter notes per measure')
-parser.add_argument('--shortest_note', default='1/16', choices=SHORTEST_NOTES.keys(),
+parser.add_argument('-s', '--shortest_note', default='1/16', choices=SHORTEST_NOTES.keys(),
                     help='Shortest possible note')
-parser.add_argument('--instrument_id', type=int, default=27, help='Instrument id for GP5 file')
+parser.add_argument('-i', '--instrument_id', type=int, default=27, help='Instrument id for GP5 file')
 parser.add_argument('--track_title', help='Track title for GP5 file')
-parser.add_argument('--path_to_gp5', help='Output path of GP5 file')
+parser.add_argument('-p', '--path_to_gp5', help='Output path of GP5 file')
 parser.add_argument('-v', '--verbose', action='store_true', help='Print verbose output')
 
 args = parser.parse_args()
@@ -68,9 +72,7 @@ assert args.instrument_id > 0, 'Instrument ID is invalid, should be > 0'
 
 # PIPELINE
 onset_detector = CnnOnsetDetector.from_zip(
-    os.path.join(args.model_dir,
-                 'onset_detection',
-                 '20170627-3-channels_ds1-4_80-perc_adjusted-labels_with_config_thresh-0.05.zip')
+    os.path.join(args.model_dir, 'onset_detection', 'ds1-4_100-perc.zip')
 )
 onset_times_seconds = onset_detector.predict_onsets(args.path_to_wav)
 
@@ -78,9 +80,7 @@ if args.musical_texture == 'mono':
     pitch_detector = AubioPitchDetector()
 else:
     pitch_detector = CnnCqtPitchDetector.from_zip(
-        os.path.join(args.model_dir,
-                     'pitch_detection',
-                     '20170718_1224_cqt_ds12391011_100-perc_optimized-params_proba-thresh-0.3.zip')
+        os.path.join(args.model_dir, 'pitch_detection', 'cqt_ds12391011_100-perc_proba-thresh-0.3.zip')
     )
 list_of_pitch_sets = pitch_detector.predict_pitches(args.path_to_wav, onset_times_seconds)
 
@@ -119,7 +119,9 @@ tracks = [
     ),
 ]
 
-recording_name = os.path.basename(args.path_to_wav).rstrip('.wav')
+recording_name = os.path.basename(args.path_to_wav)
+if recording_name.endswith('.wav'):
+    recording_name = recording_name[:-4]
 if args.track_title is None:
     track_title = recording_name
 else:
