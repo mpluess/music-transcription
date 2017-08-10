@@ -34,11 +34,25 @@ class CnnFeatureExtractor(BaseEstimator, TransformerMixin):
 
         self.standard_scalers_per_channel = None
 
-    def fit(self, wav_file_paths, y=None):
+    def fit_transform(self, wav_file_paths, y=None, truth_dataset_format_tuples=None):
+        return self.fit(
+            wav_file_paths, truth_dataset_format_tuples=truth_dataset_format_tuples, save_data=True
+        ).transform(None, load_data=True, verbose=True)
+
+    def fit(self, wav_file_paths, y=None, truth_dataset_format_tuples=None, save_data=False):
         """Fit standard scalers per channel and band."""
 
-        # TODO fit_transform so spectrograms are only done once
-        X_channels = self._read_and_extract(wav_file_paths)
+        print('Creating spectrograms')
+        if truth_dataset_format_tuples is None:
+            X_channels = self._read_and_extract(wav_file_paths)
+            y = None
+            y_actual_onset_only = None
+        else:
+            X_channels, y, y_actual_onset_only = self._read_and_extract_with_labels(wav_file_paths, truth_dataset_format_tuples)
+        if save_data:
+            self._X_channels = X_channels
+            self._y = y
+            self._y_actual_onset_only = y_actual_onset_only
 
         print('Fitting standard scalers for each channel and band')
         self.standard_scalers_per_channel = []
@@ -52,7 +66,7 @@ class CnnFeatureExtractor(BaseEstimator, TransformerMixin):
 
         return self
 
-    def transform(self, wav_file_paths, truth_dataset_format_tuples=None):
+    def transform(self, wav_file_paths, truth_dataset_format_tuples=None, load_data=False, verbose=False):
         """Transform wave files to a feature matrix.
 
         Input:
@@ -65,67 +79,63 @@ class CnnFeatureExtractor(BaseEstimator, TransformerMixin):
         Output: Tuple (X, y, y_actual_onset_only)
         """
 
-        if truth_dataset_format_tuples is None:
-            X_channels = self._read_and_extract(wav_file_paths)
-            y = None
-            y_actual_onset_only = None
+        if load_data:
+            X_channels = self._X_channels
+            y = self._y
+            y_actual_onset_only = self._y_actual_onset_only
+            self._X_channels = None
+            self._y = None
+            self._y_actual_onset_only = None
         else:
-            X_channels, y, y_actual_onset_only = self._read_and_extract_with_labels(wav_file_paths, truth_dataset_format_tuples)
+            if verbose:
+                print('Creating spectrograms')
+            if truth_dataset_format_tuples is None:
+                X_channels = self._read_and_extract(wav_file_paths)
+                y = None
+                y_actual_onset_only = None
+            else:
+                X_channels, y, y_actual_onset_only = self._read_and_extract_with_labels(wav_file_paths, truth_dataset_format_tuples)
 
         if X_channels is None:
             return None, None, None
 
-        # for X in X_channels:
-        #     print(X.shape)
-        #     print(X.mean())
-        #     print(X.std())
+        if verbose:
+            for X in X_channels:
+                print(X.shape)
+                print(X.mean())
+                print(X.std())
 
-        # print('Standardizing for each channel and band')
+        if verbose:
+            print('Standardizing for each channel and band')
         for X, standard_scalers in zip(X_channels, self.standard_scalers_per_channel):
             for j, ss in enumerate(standard_scalers):
                 X[:, j:j + 1] = ss.transform(X[:, j:j + 1])
-        # for X in X_channels:
-        #     print(X.mean())
-        #     print(X.std())
+        if verbose:
+            for X in X_channels:
+                print(X.mean())
+                print(X.std())
 
-        for i in range(len(X_channels)):
-            X_channels[i] = self._get_X_with_context_frames(X_channels[i])
-            # print(X_channels[i].shape)
-
-        # print('Reshaping data')
-        img_rows, img_cols = (X_channels[0].shape[1], X_channels[0].shape[2])
-        for i in range(len(X_channels)):
-            # Theano is 3 times faster with channels_first vs. channels_last on MNIST, so this setting matters.
-            # "image_data_format": "channels_first" @ %USERPROFILE%/.keras/keras.json
-            if self.image_data_format == 'channels_first':
-                X_channels[i] = X_channels[i].reshape(X_channels[i].shape[0], 1, img_rows, img_cols)
-            else:
-                X_channels[i] = X_channels[i].reshape(X_channels[i].shape[0], img_rows, img_cols, 1)
-            # print(X_channels[i].shape)
-
-        # print('Concatenating channels')
-        # TODO concatenate and delete one by one to use less memory at once
-        # TODO axis should change depending on image_data_format (1 vs. 3)
-        X = np.concatenate(X_channels, axis=1)
-        # print(X.shape)
+        if verbose:
+            print('Reshaping to feature matrix / adding context')
+        X = self._get_X_with_context_frames(X_channels)
+        if verbose:
+            print(X.shape)
 
         return X, y, y_actual_onset_only
 
     def _read_and_extract(self, wav_file_paths):
         """Read wave files, extract spectrogram features and return a feature matrix with shape (n_frames_all_files, n_bands) per channel."""
 
-        # print('Reading wave files')
-        X_parts = []
+        list_of_samples = []
         for path_to_wav in wav_file_paths:
-            X_part, file_length_seconds = read_X(path_to_wav, self.frame_rate_hz, self.sample_rate, self.subsampling_step)
-            if X_part is not None:
-                X_parts.append(X_part)
+            samples, file_length_seconds = read_X(path_to_wav, self.frame_rate_hz, self.sample_rate, self.subsampling_step)
+            if samples is not None:
+                list_of_samples.append(samples)
 
-        if len(X_parts) == 0:
+        if len(list_of_samples) == 0:
             return None
 
-        # print('Creating spectrograms')
-        X_channels, n_frames_after_cutoff_per_file = self._extract_spectrogram_features(X_parts)
+        X_channels, n_frames_after_cutoff_per_file = self._extract_spectrogram_features(list_of_samples)
 
         return X_channels
 
@@ -136,25 +146,23 @@ class CnnFeatureExtractor(BaseEstimator, TransformerMixin):
         y, y_actual_onset_only: corresponding onset labels
         """
 
-        print('Reading wave files and labels')
-        X_parts = []
+        list_of_samples = []
         y_parts = []
         y_actual_onset_only_parts = []
         for path_to_wav, truth_dataset_format_tuple in zip(wav_file_paths, truth_dataset_format_tuples):
             path_to_truth, dataset, truth_format = truth_dataset_format_tuple
-            X_part, y_part, y_actual_onset_only_part = read_X_y(path_to_wav, self.frame_rate_hz,
-                                                                self.sample_rate, self.subsampling_step,
-                                                                path_to_truth, truth_format, dataset)
-            if X_part is not None and y_part is not None and y_actual_onset_only_part is not None:
-                X_parts.append(X_part)
+            samples, y_part, y_actual_onset_only_part = read_X_y(path_to_wav, self.frame_rate_hz,
+                                                                 self.sample_rate, self.subsampling_step,
+                                                                 path_to_truth, truth_format, dataset)
+            if samples is not None and y_part is not None and y_actual_onset_only_part is not None:
+                list_of_samples.append(samples)
                 y_parts.append(y_part)
                 y_actual_onset_only_parts.append(y_actual_onset_only_part)
 
-        if len(X_parts) == 0:
+        if len(list_of_samples) == 0:
             return None, None, None
 
-        print('Creating spectrograms')
-        X_channels, n_frames_after_cutoff_per_file = self._extract_spectrogram_features(X_parts)
+        X_channels, n_frames_after_cutoff_per_file = self._extract_spectrogram_features(list_of_samples)
         # Cut labels to the same size as X. Number of frames that are cut off is defined by the largest window size
         # of all channels.
         y = np.concatenate([y_part[:n_frames]
@@ -166,7 +174,7 @@ class CnnFeatureExtractor(BaseEstimator, TransformerMixin):
 
         return X_channels, y, y_actual_onset_only
 
-    def _extract_spectrogram_features(self, X_parts):
+    def _extract_spectrogram_features(self, list_of_samples):
         """Return a tuple (X_channels, n_frames_after_cutoff_per_file)
 
         X_channels: list of one feature matrix with shape (n_frames_all_files, n_bands) per channel
@@ -174,7 +182,7 @@ class CnnFeatureExtractor(BaseEstimator, TransformerMixin):
         seconds are cut off by _extract_spectrogram_features_X.
         """
 
-        n_frames_after_cutoff_per_file = [None] * len(X_parts)
+        n_frames_after_cutoff_per_file = [None] * len(list_of_samples)
         X_channels = []
         # Create 3 channels with different window length.
         # Make sure to run the largest window first which cuts off the most at the end of the file.
@@ -189,16 +197,16 @@ class CnnFeatureExtractor(BaseEstimator, TransformerMixin):
 
                 key=lambda t: t[1], reverse=True
         ):
-            transformed = [self._extract_spectrogram_features_X(X_part, n_frames, winlen=winlen, nfft=nfft)
-                           for X_part, n_frames
-                           in zip(X_parts, n_frames_after_cutoff_per_file)]
+            transformed = [self._extract_spectrogram_features_X(samples, n_frames, winlen=winlen, nfft=nfft)
+                           for samples, n_frames
+                           in zip(list_of_samples, n_frames_after_cutoff_per_file)]
             X = np.concatenate([t[0] for t in transformed])
             n_frames_after_cutoff_per_file = [t[1] for t in transformed]
             X_channels.append(X)
 
         return X_channels, n_frames_after_cutoff_per_file
 
-    def _extract_spectrogram_features_X(self, X_part, n_frames, log_transform_magnitudes=True,
+    def _extract_spectrogram_features_X(self, samples, n_frames, log_transform_magnitudes=True,
                                         winlen=0.046, nfilt=80, nfft=2048,
                                         lowfreq=27.5, highfreq=16000, preemph=0):
         """Extract spectrogram features for one file.
@@ -212,7 +220,6 @@ class CnnFeatureExtractor(BaseEstimator, TransformerMixin):
         """
 
         winstep = 1 / self.frame_rate_hz
-        samples = X_part.ravel()
         if log_transform_magnitudes:
             filterbank = logfbank(samples, self.sample_rate, winlen=winlen, winstep=winstep, nfilt=nfilt,
                                   nfft=nfft, lowfreq=lowfreq, highfreq=highfreq, preemph=preemph)
@@ -224,25 +231,45 @@ class CnnFeatureExtractor(BaseEstimator, TransformerMixin):
             n_frames = filterbank.shape[0]
         return filterbank[:n_frames, :], n_frames
 
-    def _get_X_with_context_frames(self, X, c=7, border_value=0.0):
-        """Return new X with new dimensions (X.shape[0] = n_samples, 2*c + 1, X.shape[1] = filterbank_size)
+    def _get_X_with_context_frames(self, X_channels, c=7, border_value=0.0):
+        """Merge channels to a 4D-tensor and add context frames to each sample.
 
-        One entry of X_new consists of c frames of context before the current frame,
+        channels_first: returns X with dimensions (n_samples, n_channels, 2*c + 1, filterbank_size)
+        channels_last: returns X with dimensions (n_samples, 2*c + 1, filterbank_size, n_channels)
+
+        One entry of X consists of c frames of context before the current frame,
         the current frame and another c frames of context after the current frame.
         """
 
-        n_samples = X.shape[0]
-        filterbank_size = X.shape[1]
-        X_new = np.empty((n_samples, 2 * c + 1, filterbank_size))
-        for i in range(n_samples):
-            for offset in range(-c, c + 1):
-                if i + offset > -1 and i + offset < n_samples:
-                    # X_new 2nd dim: [0, 2*c + 1[
-                    # X 1st dim: [i-c, i+c+1[
-                    X_new[i, offset + c, :] = X[i + offset, :]
-                else:
-                    X_new[i, offset + c].fill(border_value)
-        return X_new
+        n_samples = X_channels[0].shape[0]
+        filterbank_size = X_channels[0].shape[1]
+
+        # Theano is 3 times faster with channels_first vs. channels_last on MNIST, so this setting matters.
+        # "image_data_format": "channels_first" @ %USERPROFILE%/.keras/keras.json
+        if self.image_data_format == 'channels_first':
+            X = np.empty((n_samples, len(X_channels), 2*c + 1, filterbank_size))
+        else:
+            X = np.empty((n_samples, 2 * c + 1, filterbank_size, len(X_channels)))
+
+        # channels_first: (n_channels, n_samples, filterbank_size) -> (n_samples, n_channels, 2*c + 1, filterbank_size)
+        # channels_last: (n_channels, n_samples, filterbank_size) -> (n_samples, 2*c + 1, filterbank_size, n_channels)
+        for i_channel, X_channel in enumerate(X_channels):
+            for i_sample in range(n_samples):
+                for offset in range(-c, c + 1):
+                    if i_sample + offset > -1 and i_sample + offset < n_samples:
+                        # X 3rd dim channels_first / 2nd dim channels_last: [0, 2*c + 1[
+                        # X_channel 1st dim: [i_sample-c, i_sample+c+1[
+                        if self.image_data_format == 'channels_first':
+                            X[i_sample, i_channel, offset + c, :] = X_channel[i_sample + offset, :]
+                        else:
+                            X[i_sample, offset + c, :, i_channel] = X_channel[i_sample + offset, :]
+                    else:
+                        if self.image_data_format == 'channels_first':
+                            X[i_sample, i_channel, offset + c].fill(border_value)
+                        else:
+                            X[i_sample, offset + c, :, i_channel] = border_value
+
+        return X
 
 
 class CnnOnsetDetector(AbstractOnsetDetector):
@@ -261,11 +288,35 @@ class CnnOnsetDetector(AbstractOnsetDetector):
                  config=None, feature_extractor=None, model=None,
 
                  # config params
-                 onset_group_threshold_seconds=0.03,
+                 onset_group_threshold_seconds=0.05,
 
                  # feature extractor params
                  frame_rate_hz=100, sample_rate=44100, subsampling_step=1, image_data_format='channels_first',
                  winlen_nfft_per_channel=((0.023, 1024), (0.046, 2048), (0.092, 4096))):
+        """
+
+        Parameters
+        ----------
+        config : dict
+            CnnOnsetDetector configuration (use this when loading an existing model)
+        feature_extractor : CnnFeatureExtractor
+            Feature extractor object (use this when loading an existing model)
+        model
+            Keras model (use this when loading an existing model)
+        onset_group_threshold_seconds : float
+            Consecutive onsets less than onset_group_threshold_seconds apart will be grouped together.
+        frame_rate_hz : int
+            Frame rate in Hz
+        sample_rate : int
+            Sample rate in Hz
+        subsampling_step : int
+            If > 1: only take every nth sample.
+        image_data_format : str
+            One of 'channels_first' (for Theano backend), 'channels_last' (Tensorflow backend).
+        winlen_nfft_per_channel : tuple of tuple
+            Tuple of (winlen_seconds, nfft) tuples to configure spectrograms.
+        """
+
         if config is None:
             super().__init__(onset_group_threshold_seconds)
         else:
@@ -370,18 +421,15 @@ class CnnOnsetDetector(AbstractOnsetDetector):
         Fit CnnFeatureExtractor and the Keras model created by _create_model.
         """
 
-        self.feature_extractor.fit(wav_file_paths_train)
-        X_train, y_train, y_actual_onset_only_train = self.feature_extractor.transform(wav_file_paths_train,
-                                                                                       truth_dataset_format_tuples_train)
+        X_train, y_train, y_actual_onset_only_train = self.feature_extractor.fit_transform(
+            wav_file_paths_train, truth_dataset_format_tuples=truth_dataset_format_tuples_train
+        )
         input_shape = (X_train.shape[1], X_train.shape[2], X_train.shape[3])
-        print('y_train.sum()={}'.format(y_train.sum()))
-        print('y_actual_onset_only_train.sum()={}'.format(y_actual_onset_only_train.sum()))
 
         if wav_file_paths_val is not None and truth_dataset_format_tuples_val is not None:
-            X_val, y_val, y_actual_onset_only_val = self.feature_extractor.transform(wav_file_paths_val,
-                                                                                     truth_dataset_format_tuples_val)
-            print('y_val.sum()={}'.format(y_val.sum()))
-            print('y_actual_onset_only_val.sum()={}'.format(y_actual_onset_only_val.sum()))
+            X_val, y_val, y_actual_onset_only_val = self.feature_extractor.transform(
+                wav_file_paths_val, truth_dataset_format_tuples=truth_dataset_format_tuples_val, verbose=True
+            )
             validation_data = (X_val, y_val)
         else:
             validation_data = None
@@ -434,7 +482,9 @@ class CnnOnsetDetector(AbstractOnsetDetector):
     def predict_print_metrics(self, wav_file_paths, truth_dataset_format_tuples):
         """Legacy method, use predict_onsets / see benchmark for how to get metrics."""
 
-        X, y, y_actual_onset_only = self.feature_extractor.transform(wav_file_paths, truth_dataset_format_tuples)
+        X, y, y_actual_onset_only = self.feature_extractor.transform(
+            wav_file_paths, truth_dataset_format_tuples=truth_dataset_format_tuples
+        )
 
         print('unfiltered:')
         y_predicted = self.model.predict_classes(X, batch_size=self.BATCH_SIZE).ravel()

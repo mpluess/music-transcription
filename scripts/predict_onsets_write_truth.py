@@ -4,7 +4,7 @@ from warnings import warn
 
 from music_transcription.onset_detection.cnn_onset_detection import CnnOnsetDetector
 
-onset_detector = CnnOnsetDetector.from_zip('../models/onset_detection/20170601-3-channels_ds1-4_80-perc_adjusted-labels_with_config.zip')
+onset_detector = CnnOnsetDetector.from_zip('../models/onset_detection/ds1-4_100-perc.zip')
 root_dir = '../data/IDMT-SMT-AUDIO-EFFECTS'
 for dataset_part in listdir(root_dir):
     path_to_dataset_part = join(root_dir, dataset_part)

@@ -5,15 +5,25 @@ from music_transcription.fileformat.guitar_pro.utils import *
 
 # numerator, denominator, repeat_open, repeat_close, repeat_alt, marker_name, marker_color,
 # major_key, minor_key, double_bar, beam8notes, triplet_feel
+# measures = [  # attention: first measure needs to specify numerator, denominator and beam8notes
+#     Measure(4, 4, False, 0, 0, "", (0, 0, 0, 0), 0, 0, False, (2, 2, 2, 2), 0),
+#     Measure(0, 0, False, 0, 0, "", (0, 0, 0, 0), 0, 0, False, (0, 0, 0, 0), 0),
+#     Measure(0, 0, False, 0, 0, "", (0, 0, 0, 0), 0, 0, False, (0, 0, 0, 0), 0),
+#     Measure(0, 0, False, 0, 0, "", (0, 0, 0, 0), 0, 0, False, (0, 0, 0, 0), 0),
+#     Measure(0, 0, False, 0, 0, "", (0, 0, 0, 0), 0, 0, False, (0, 0, 0, 0), 0),
+#     Measure(0, 0, False, 0, 0, "", (0, 0, 0, 0), 0, 0, False, (0, 0, 0, 0), 0),
+#     Measure(0, 0, False, 0, 0, "", (0, 0, 0, 0), 0, 0, False, (0, 0, 0, 0), 0),
+#     Measure(0, 0, False, 0, 0, "", (0, 0, 0, 0), 0, 0, False, (0, 0, 0, 0), 0),
+# ]
 measures = [  # attention: first measure needs to specify numerator, denominator and beam8notes
-    Measure(4, 4, False, 0, 0, "", (0, 0, 0, 0), 0, 0, False, (2, 2, 2, 2), 0),
-    Measure(0, 0, False, 0, 0, "", (0, 0, 0, 0), 0, 0, False, (0, 0, 0, 0), 0),
-    Measure(0, 0, False, 0, 0, "", (0, 0, 0, 0), 0, 0, False, (0, 0, 0, 0), 0),
-    Measure(0, 0, False, 0, 0, "", (0, 0, 0, 0), 0, 0, False, (0, 0, 0, 0), 0),
-    Measure(0, 0, False, 0, 0, "", (0, 0, 0, 0), 0, 0, False, (0, 0, 0, 0), 0),
-    Measure(0, 0, False, 0, 0, "", (0, 0, 0, 0), 0, 0, False, (0, 0, 0, 0), 0),
-    Measure(0, 0, False, 0, 0, "", (0, 0, 0, 0), 0, 0, False, (0, 0, 0, 0), 0),
-    Measure(0, 0, False, 0, 0, "", (0, 0, 0, 0), 0, 0, False, (0, 0, 0, 0), 0),
+    Measure(numerator=4, denominator=4, beam8notes=(2, 2, 2, 2)),
+    Measure(),
+    Measure(),
+    Measure(),
+    Measure(),
+    Measure(),
+    Measure(),
+    Measure(),
 ]
 
 tracks = [  # name nStrings tuning midiPort channel channelE frets capo color instrument
@@ -25,56 +35,56 @@ beats = [
     [  # measure 1
         (  # track 1
             [  # voice 1: notes duration pause empty dotted ntuple_feel chord text effect mix_change
-                beat([None, None, None, None, note(2), note(0), None], duration=-2)
+                Beat([None, None, None, None, Note(2), Note(0), None], duration=-2)
             ], []  # voice 2
         )
     ],
     [  # measure 2
         (  # track 1
             [  # voice 1: notes duration pause empty dotted ntuple_feel chord text effect mix_change
-                beat([None, None, None, None, note(3), note(0), None], duration=-2)
+                Beat([None, None, None, None, Note(3), Note(0), None], duration=-2)
             ], []  # voice 2
         )
     ],
     [  # measure 3
-            (  # track 1
-                [  # voice 1: notes duration pause empty dotted ntuple_feel chord text effect mix_change
-                    beat([None, None, None, None, note(3), note(0), None], duration=-2)
-                ], []  # voice 2
-            )
-        ],
+        (  # track 1
+            [  # voice 1: notes duration pause empty dotted ntuple_feel chord text effect mix_change
+                Beat([None, None, None, None, Note(3), Note(0), None], duration=-2)
+            ], []  # voice 2
+        )
+    ],
     [  # measure 4
         (  # track 1
             [  # voice 1: notes duration pause empty dotted ntuple_feel chord text effect mix_change
-                beat([None, None, None, None, note(3), note(0), None], duration=-2)
+                Beat([None, None, None, None, Note(3), Note(0), None], duration=-2)
             ], []  # voice 2
         )
     ],
     [  # measure 5
         (  # track 1
             [  # voice 1: notes duration pause empty dotted ntuple_feel chord text effect mix_change
-                beat([None, None, None, None, note(3), note(0), None], duration=-2)
+                Beat([None, None, None, None, Note(3), Note(0), None], duration=-2)
             ], []  # voice 2
         )
     ],
     [  # measure 6
         (  # track 1
             [  # voice 1: notes duration pause empty dotted ntuple_feel chord text effect mix_change
-                beat([None, None, None, None, note(3), note(0), None], duration=-2)
+                Beat([None, None, None, None, Note(3), Note(0), None], duration=-2)
             ], []  # voice 2
         ),
     ],
     [  # measure 7
         (  # track 1
             [  # voice 1: notes duration pause empty dotted ntuple_feel chord text effect mix_change
-                beat([None, None, None, None, note(3), note(0), None], duration=-2)
+                Beat([None, None, None, None, Note(3), Note(0), None], duration=-2)
             ], []  # voice 2
         )
     ],
     [  # measure 8
         (  # track 1
             [  # voice 1: notes duration pause empty dotted ntuple_feel chord text effect mix_change
-                beat([None, None, None, None, note(3), note(0), None], duration=-2)
+                Beat([None, None, None, None, Note(3), Note(0), None], duration=-2)
             ], []  # voice 2
         )
     ],

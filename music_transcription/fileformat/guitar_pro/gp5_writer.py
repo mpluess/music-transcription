@@ -15,7 +15,9 @@ def write_gp5(measures, tracks, beats,
               outfile="out.gp5"):
     version = 'FICHIER GUITAR PRO v5.00'  # for now only this version is supported
 
-    os.makedirs(os.path.dirname(outfile), exist_ok=True)  # check if output directory exists, create if needed.
+    dirname = os.path.dirname(outfile)
+    if dirname != '':
+        os.makedirs(dirname, exist_ok=True)  # check if output directory exists, create if needed.
     file = open(outfile, 'wb')
 
     _write_block_string(file, version, 30)  # write version
@@ -73,17 +75,19 @@ def _write_color(file, color):
 
 
 def _write_header(file, header):
-    # if header is not None:
-    #     for s in header:
-    #         _write_block_string(file, s)
-    # else:
-    #     for i in range(len(Header._fields) - 1):
-    #         _write_block_string(file, "")
+    if header is None:
+        header = Header()
+    _write_block_string(file, header.title)
+    _write_block_string(file, header.subtitle)
+    _write_block_string(file, header.interpret)
+    _write_block_string(file, header.album)
+    _write_block_string(file, header.author_words)
+    _write_block_string(file, header.author_music)
+    _write_block_string(file, header.copyright)
+    _write_block_string(file, header.tab_author)
+    _write_block_string(file, header.instructions)
 
-    for i in range(len(Header._fields) - 1):
-        _write_block_string(file, "" if header is None else header[i])
-
-    notes = [] if header is None else header.notes.split('\n')
+    notes = [] if header.notes == '' else header.notes.split('\n')
     _write_int(file, len(notes))
     for s in notes:
         _write_block_string(file, s)

@@ -10,9 +10,35 @@ we can still train on a substantial percentage of the datasets 1 and 2.
 """
 
 from sklearn.model_selection import KFold
+from warnings import warn
 
 from music_transcription.onset_detection.cnn_onset_detection import CnnOnsetDetector
-from music_transcription.onset_detection.read_data import get_wav_and_truth_files
+from music_transcription.onset_detection.metrics import Metrics, onset_metric_times
+from music_transcription.onset_detection.read_data import read_onset_times
+from music_transcription.read_data import get_wav_and_truth_files
+
+
+def predict_print_metrics(wav_file_paths, truth_dataset_format_tuples):
+    metrics_2 = Metrics(0, 0, 0)
+    metrics_5 = Metrics(0, 0, 0)
+    for path_to_wav, (path_to_truth, dataset, truth_format) in zip(wav_file_paths, truth_dataset_format_tuples):
+        onset_times = read_onset_times(path_to_truth, dataset, truth_format, 0.05)
+        onset_times_predicted = onset_detector.predict_onsets(path_to_wav)
+        if onset_times_predicted is None:
+            warn('Failed to predict {}'.format(path_to_wav))
+        else:
+            metrics_2.add(onset_metric_times(onset_times, onset_times_predicted, n_tolerance_seconds_plus_minus=0.02))
+            metrics_5.add(onset_metric_times(onset_times, onset_times_predicted, n_tolerance_seconds_plus_minus=0.05))
+
+    print('n_tolerance_seconds_plus_minus=0.02')
+    print_metrics(metrics_2)
+    print('n_tolerance_seconds_plus_minus=0.05')
+    print_metrics(metrics_5)
+
+
+def print_metrics(metrics):
+    print('TP=' + str(metrics.tp) + ', FN=' + str(metrics.fn) + ', FP=' + str(metrics.fp))
+    print('precision=' + str(metrics.precision()) + ', recall=' + str(metrics.recall()) + ', F1=' + str(metrics.f1()))
 
 DATASETS_CV = {1, 2}
 DATASETS_ADDITIONAL = {3, 4}
@@ -29,10 +55,9 @@ for k, (train_indices, test_indices) in enumerate(k_fold.split(wav_file_paths_cv
 
     onset_detector = CnnOnsetDetector()
     onset_detector.fit(wav_file_paths_train, truth_dataset_format_tuples_train)
+    # onset_detector.save('../models/onset_detection/20170725-3-channels_ds12-cv_ds34-additional_fold-' + str(k) + '.zip')
 
     print('TRAIN')
-    onset_detector.predict_print_metrics(wav_file_paths_train, truth_dataset_format_tuples_train)
+    predict_print_metrics(wav_file_paths_train, truth_dataset_format_tuples_train)
     print('TEST')
-    onset_detector.predict_print_metrics(wav_file_paths_test, truth_dataset_format_tuples_test)
-
-    onset_detector.save('../models/20170511-1-channel_ds12-cv_ds34-additional_fold-' + str(k) + '_adjusted-labels.zip')
+    predict_print_metrics(wav_file_paths_test, truth_dataset_format_tuples_test)
