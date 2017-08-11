@@ -71,11 +71,13 @@ assert args.beats_per_measure > 0, 'Beats per measure is invalid, should be > 0'
 assert args.instrument_id > 0, 'Instrument ID is invalid, should be > 0'
 
 # PIPELINE
+print('Detecting onsets')
 onset_detector = CnnOnsetDetector.from_zip(
     os.path.join(args.model_dir, 'onset_detection', 'ds1-4_100-perc.zip')
 )
 onset_times_seconds = onset_detector.predict_onsets(args.path_to_wav)
 
+print('Detecting pitches')
 if args.musical_texture == 'mono':
     pitch_detector = AubioPitchDetector()
 else:
@@ -84,6 +86,7 @@ else:
     )
 list_of_pitch_sets = pitch_detector.predict_pitches(args.path_to_wav, onset_times_seconds)
 
+print('Detecting strings and frets')
 string_fret_detector = SequenceStringFretDetection(TUNING, N_FRETS)
 list_of_string_lists, list_of_fret_lists = string_fret_detector.predict_strings_and_frets(args.path_to_wav,
                                                                                           onset_times_seconds,
@@ -95,15 +98,19 @@ if args.verbose:
         print('onset={}, pitch={}, string={}, fret={}'.format(onset, sorted(pitch, reverse=True), string, fret))
 
 if args.tempo == TEMPO_DEFAULT:
+    print('Detecting tempo')
     tempo_detector = AubioTempoDetector()
     tempo = tempo_detector.predict(args.path_to_wav, onset_times_seconds)
 else:
     tempo = args.tempo
+
+print('Running beat transformer')
 beat_transformer = SimpleBeatTransformer(shortest_note=SHORTEST_NOTES[args.shortest_note],
                                          beats_per_measure=float(args.beats_per_measure))
 beats = beat_transformer.transform(args.path_to_wav, onset_times_seconds,
                                    list_of_string_lists, list_of_fret_lists, tempo)
 
+print('Exporting to GP5')
 measures = []
 for i, measure in enumerate(beats):
     if i == 0:
