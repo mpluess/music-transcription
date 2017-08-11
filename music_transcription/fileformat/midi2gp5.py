@@ -5,13 +5,6 @@ from music_transcription.fileformat.MIDI import midi2score
 from music_transcription.fileformat.guitar_pro.gp5_writer import write_gp5
 from music_transcription.fileformat.guitar_pro.utils import *
 
-
-class Event:
-    def __init__(self, time, track, event):
-        self.time = time
-        self.track = track
-        self.event = event
-
 meta_events = ['text_event', 'copyright_text_event', 'track_name', 'instrument_name', 'lyric', 'marker', 'cue_point', 'text_event_08', 'text_event_09', 'text_event_0a', 'text_event_0b', 'text_event_0c', 'text_event_0d', 'text_event_0e', 'text_event_0f', 'end_track', 'set_tempo', 'smpte_offset', 'time_signature', 'key_signature','sequencer_specific', 'raw_meta_event', 'sysex_f0', 'sysex_f7', 'song_position', 'song_select', 'tune_request']
 midi_events = ['note', 'key_after_touch', 'control_change', 'patch_change', 'channel_after_touch', 'pitch_wheel_change']  #'note_off', 'note_on',
 
@@ -139,9 +132,9 @@ def convert_midi2gp5(path_to_midi, outfile, shortest_note=0.25, init_tempo=120, 
                 else:
                     elements_to_push.append(event)
         for event in elements_to_push:
-            heappush(event_queue, Event(event[1], track_mapping[i], event))
+            heappush(event_queue, (event[1], track_mapping[i], event))
 
-    heappush(event_queue, Event(float('inf'), -1, ['song_end', float('inf')]))  # add end of song event
+    heappush(event_queue, (float('inf'), -1, ['song_end', float('inf')]))  # add end of song event
 
     # rearrange track indices to fill gaps of tracks that only contain meta-events
     idx = 0
