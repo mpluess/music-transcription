@@ -13,8 +13,8 @@ Also offers functionality to compare GP5 files and convert MIDI files to GP5.
 ## Installation
 This is currently only tested for Windows 10, but other platforms should work as well.
 1. Download and extract this repository.
-2. Download and install Anaconda3 64-bit if you don't already have it.
-3. Create and activate a new environment containing all relevant modules using the following commands:
+2. Download and install Anaconda3 64-bit (https://www.continuum.io/downloads).
+3. Create and activate a new environment containing all relevant modules using the following commands in an Anaconda prompt:
    ```
    conda env create -f $INSTALLDIR/conda_env.yml
    activate music_transcription
