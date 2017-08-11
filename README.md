@@ -8,7 +8,8 @@ Pipeline steps:
 - Mapping of onset times to discrete notes in measures
 - GP5 export
   
-Also offers functionality to compare GP5 files and convert MIDI files to GP5.
+Also offers functionality to compare GP5 files and convert MIDI files to GP5.  
+The system is implemented in Python 3.5.
 
 ## Installation
 This is currently only tested for Windows 10, but other platforms should work as well.
