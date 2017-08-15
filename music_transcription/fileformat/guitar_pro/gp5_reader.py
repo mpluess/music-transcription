@@ -11,6 +11,8 @@ from music_transcription.fileformat.guitar_pro.utils import *
 
 
 class GP5File:
+    """ Wrapper class for reading a GP5 File """
+
     def __init__(self, filename):
         self.tie_notes = [-1, -1, -1, -1, -1, -1, -1]
         self.file = open(filename, 'rb')

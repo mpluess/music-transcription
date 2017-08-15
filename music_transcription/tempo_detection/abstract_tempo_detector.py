@@ -19,7 +19,7 @@ class AbstractTempoDetector(metaclass=ABCMeta):
         Returns
         -------
         int
-            Tempo in BPM
+            Tempo in bpm (beats per minute)
         """
 
         pass

@@ -8,11 +8,39 @@ from music_transcription.string_fret_detection.plausibility import get_all_fret_
 
 class SequenceStringFretDetection(AbstractStringFretDetector):
     def __init__(self, tuning, n_frets, complexity=50):
+        """ String and fret detection based on the whole sequence to be written
+        optimizes the resulting sequence so there are as few hand position changes as possible
+        
+        Parameters
+        ----------
+        tuning : tuple of :int:
+            Tuple with length n_strings describing the pitches of the empty strings, in descending order.
+        n_frets : int
+            Number of frets of the guitar.
+        complexity: int, optional
+            maximum number of possible sequences to keep per iteration. Default: 50.
+            The number of possible sequences that are tested grows linear with complexity and number of onsets.
+        """
         super().__init__(tuning, n_frets)
         self.complexity = max(complexity, len(tuning))  # number of possibilities to keep
 
     def get_fret_distance_with_update_fret_pos(self, chord, fret_pos, duration):
-        """calculates the fret distance from one chord to the next and updates finger/fret positions """
+        """ calculates the fret distance from one chord to the next and updates finger/fret positions
+        
+        Parameters
+        ----------
+        chord: list of :int:
+            note / chord that is played
+        fret_pos: (int, int)
+            min and max fret positions that are possible to be within the current finger position
+        duration: int
+            duration in 100ms
+
+        Returns
+        -------
+        (float, (int, int))
+            fret distance and updated finger position
+        """
 
         min_fret_a, max_fret_a = fret_pos
         non_empty_frets = [fret for fret in chord if fret > 0]
@@ -40,13 +68,30 @@ class SequenceStringFretDetection(AbstractStringFretDetector):
             return min_fret_a * 0.2, fret_pos_  # penalty for empty strings (higher penalty for high chords)
 
     def get_string_distance(self, chord_a, chord_b):
-        """calculate string distance: 1.0 for maximum change, 0.0 for no change """
+        """ calculate string distance: 1.0 for maximum change, 0.0 for no change """
         active_strings_a = [j for j in range(len(chord_a)) if chord_a[j] >= 0]
         active_strings_b = [j for j in range(len(chord_b)) if chord_b[j] >= 0]
         return np.abs(np.median(active_strings_a) - np.median(active_strings_b)) / (len(self.tuning) - 1)
 
     def get_next_chord_distance(self, chord_a, chord_b, fret_pos, duration_b):
-        """Distance function of two chords from 0.0 (min distance) to 1.0 (max distance) """
+        """ Distance function of two chords from 0.0 (no distance) to 1.0 (max distance)
+        
+        Parameters
+        ----------
+        chord_a: list of :int:
+            previous chord
+        chord_b: list of :int:
+            current chord
+        fret_pos: (int, int)
+            min and max fret positions that are possible to be within the current finger position
+        duration_b: int
+            duration of current note/chord in 100ms
+
+        Returns
+        -------
+        (float, (int, int))
+            Distance of two chords from 0.0 (no distance) to 1.0 (max distance) and updated finger position
+        """
 
         fret_distance, fret_pos_new = self.get_fret_distance_with_update_fret_pos(chord_b, fret_pos, duration_b)
         string_distance = self.get_string_distance(chord_a, chord_b)
@@ -98,9 +143,7 @@ class SequenceStringFretDetection(AbstractStringFretDetector):
         p_opt, optimal_chords, _ = heappop(pq)
         p_opt *= -1  # invert back (for max heap)
 
-        # chords_per_pitch_set = [get_all_fret_possibilities(pitch_set, tuning=self.tuning, n_frets=self.n_frets)
-        #                         for pitch_set in list_of_pitch_sets]
-        # optimal_chords = [chords_per_pitch_set[i_onset][to_discrete(i_chord)] for i_onset, i_chord in enumerate(xopt)]
+        # assemble string and fret lists
         list_of_string_lists = []
         list_of_fret_lists = []
         for chords in optimal_chords:

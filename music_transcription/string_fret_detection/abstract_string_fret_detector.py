@@ -24,6 +24,20 @@ class AbstractStringFretDetector(metaclass=ABCMeta):
 
         The returned string and fret lists have exactly the same shapes.
         String and fret information at the same indices belong together.
+        
+        The onset list and pitch list also have the same length and belong together at the same indices.
+
+        Parameters
+        ----------
+        path_to_wav_file : str
+            Path to wave file for which the strings and frets should be predicted.
+        onset_times_seconds : list of float
+            List of onsets as floats, describing the time in seconds when each onset happens, sorted by time.
+        list_of_pitch_sets : list of list of int
+            List (len = len(onset_times_seconds) = len(list_of_pitch_sets))
+            of lists (len = length of the corresponding pitch set) of string numbers,
+            with 0 being the string with the highest pitch
+            and 5 the one with the lowest pitch.
 
         Returns
         -------

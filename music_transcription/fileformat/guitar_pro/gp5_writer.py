@@ -8,16 +8,42 @@ from collections import defaultdict
 from music_transcription.fileformat.guitar_pro.utils import *
 
 
-def write_gp5(measures, tracks, beats,
-              tempo=120,
-              header=None,
-              lyrics=None,
-              outfile="out.gp5"):
+def write_gp5(measures, tracks, beats, tempo=120, header=None, lyrics=None, outfile="out.gp5"):
+    """ writes a guitar pro file
+    
+    Parameters
+    ----------
+    measures: list of :obj:`Measure`
+        List of measures
+    tracks: list of :obj:`Track`
+        List of tracks
+    beats: list
+        List of lists (each representing a measure) of tuples (each representing a track) with two
+        lists of Beat objects. The first list is played on MIDI channel 1, the second on channel 2
+        [  # measures
+            [  # measure, tracks
+                (  # track, 2 voices
+                    [  # voice 1, beats (onsets with corresponding notes) go here
+
+                    ],
+                    [] # voice 2 is empty
+                ),
+            ],
+        ]
+        for further details on usage, see music_transcription.fileformat.guitar_pro.gp5_writer.write_gp5.
+    tempo: int
+        Tempo in beats per minute (bpm). Default: 120
+    header: Header
+    lyrics: Lyrics
+    outfile: str
+        Path to the file to be written. Default: 'out.gp5' 
+    """
+
     version = 'FICHIER GUITAR PRO v5.00'  # for now only this version is supported
 
-    dirname = os.path.dirname(outfile)
-    if dirname != '':
-        os.makedirs(dirname, exist_ok=True)  # check if output directory exists, create if needed.
+    dir_name = os.path.dirname(outfile)
+    if dir_name != '':
+        os.makedirs(dir_name, exist_ok=True)  # check if output directory exists, create if needed.
     file = open(outfile, 'wb')
 
     _write_block_string(file, version, 30)  # write version

@@ -1,3 +1,5 @@
+""" create a skeleton XML file for labelling with the onsets predicted by our onset detector """
+
 from xml.etree import ElementTree
 from xml.dom import minidom
 

@@ -1,11 +1,30 @@
 import numpy as np
 
+# configuration for plausible finger positions
 MAX_DISTANCE_MM = 135  # max finger spread distance  # 140
 FIRST_FRET_WIDTH = 33  # 36.369
 FRET_WIDTH_DECREASE = 1.03  # 1.05946263
 
 
 def get_all_fret_possibilities(notes, tuning=(64, 59, 55, 50, 45, 40), n_frets=24):
+    """ List all possible positions of a note / chord
+    
+    Parameters
+    ----------
+    notes: list
+        List of pitches
+    tuning: tuple of :int:, optional
+        tuning of the instrument. Default: standard tuning
+    n_frets: int, optional
+        number of frets on the fretboard. Default: 24
+
+    Returns
+    -------
+    list
+        list with possible fret positions that result in the given notes.
+        list of (list of int)
+    """
+
     solutions = [[-1] * len(tuning)]
     for note in sorted(notes):
         # print(solutions)
@@ -57,6 +76,26 @@ def get_all_fret_possibilities(notes, tuning=(64, 59, 55, 50, 45, 40), n_frets=2
 
 
 def get_chord_probability(chord, n_frets=24):
+    """ Get probability for a chord
+    following characteristics are taken into account:
+    - low probability for wide finger spreading (when wider than 2 frets)
+    - low probability for empty strings, especially if played strings are on high frets
+    - penalty for high frets on thick strings
+    - penalty for non-played strings between played strings
+    
+    Parameters
+    ----------
+    chord: list of :int:
+        note / chord for which to determine the probability
+    n_frets: int, optional
+        number of frets on the fretboard. Default: 24
+
+    Returns
+    -------
+    float
+        probability / plausibility that this chord is played
+    """
+
     p_fret_diff = 1.0
     penalty = 1.0
 
@@ -73,7 +112,7 @@ def get_chord_probability(chord, n_frets=24):
     non_empty_frets = [fret for fret in chord if fret > 0]
     if len(non_empty_frets) > 0:
         fret_diff = max(0, max(non_empty_frets) - min(non_empty_frets) - 2)
-        p_fret_diff = 1.0 - min(1.0, fret_diff/10)
+        p_fret_diff = 1.0 - min(1.0, fret_diff/10)  # lower possibility for wide spreads
 
         if len(played_frets) > len(non_empty_frets):  # add penalty if there are empty strings
             penalty = 1.0 - min(non_empty_frets) / n_frets / 2

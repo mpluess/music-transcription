@@ -5,11 +5,17 @@ from music_transcription.fileformat.MIDI import midi2score
 from music_transcription.fileformat.guitar_pro.gp5_writer import write_gp5
 from music_transcription.fileformat.guitar_pro.utils import *
 
-meta_events = ['text_event', 'copyright_text_event', 'track_name', 'instrument_name', 'lyric', 'marker', 'cue_point', 'text_event_08', 'text_event_09', 'text_event_0a', 'text_event_0b', 'text_event_0c', 'text_event_0d', 'text_event_0e', 'text_event_0f', 'end_track', 'set_tempo', 'smpte_offset', 'time_signature', 'key_signature','sequencer_specific', 'raw_meta_event', 'sysex_f0', 'sysex_f7', 'song_position', 'song_select', 'tune_request']
-midi_events = ['note', 'key_after_touch', 'control_change', 'patch_change', 'channel_after_touch', 'pitch_wheel_change']  #'note_off', 'note_on',
+meta_events = ['text_event', 'copyright_text_event', 'track_name', 'instrument_name', 'lyric', 'marker', 'cue_point',
+               'text_event_08', 'text_event_09', 'text_event_0a', 'text_event_0b', 'text_event_0c', 'text_event_0d',
+               'text_event_0e', 'text_event_0f', 'end_track', 'set_tempo', 'smpte_offset',
+               'time_signature', 'key_signature','sequencer_specific', 'raw_meta_event', 'sysex_f0', 'sysex_f7',
+               'song_position', 'song_select', 'tune_request']
+# 'note_off', 'note_on' for opus notation result in 'note' event in score notation
+midi_events = ['note', 'key_after_touch', 'control_change', 'patch_change', 'channel_after_touch', 'pitch_wheel_change']
 
 
 def determine_tuning(min_note):
+    """ estimate tuning regarding the highest and lowest played note """
     if min_note < 28:  # 28 = E2 = std bass tuning. Assume a 5-string here!
         diff = max(0, 23 - min_note)
         return 43 - diff, 38 - diff, 33 - diff, 28 - diff, 23 - diff, -1, -1  # tuning (7 strings: highest to lowest)
@@ -27,18 +33,31 @@ def determine_tuning(min_note):
         return 64 - diff, 59 - diff, 55 - diff, 50 - diff, 45 - diff, 40 - diff, -1
 
 
-# returns true if all notes in notes_arr are either not played or tied
 def tied_or_none(notes_arr):
+    """ returns true if all notes in notes_arr are either not played or tied """
     result = True
     for nt in notes_arr:
         result = result and (nt is None or nt.tied)
     return result
 
 
-# takes a number of notes (of length gp5_duration) which determine the duration of a note
-# outputs an array of gp5-lengths that represent the same note duration
-# e.g. a note is 5 16ths long - output should be a quarter and a sixteenth, so [0, 2]
 def get_collapsed_lengths(num_notes, gp5_duration):
+    """ minimizes the number of gp5 notes needed to write a note with the specified duration
+    e.g. 5 sixteenth notes can be written as one quarter and one sixteenth note. in GP5 style that is [0, 2]
+    
+    Parameters
+    ----------
+    num_notes: int
+        number of notes (of length gp5_duration) which determine the duration of a note
+    gp5_duration: int
+        shortest note duration in gp5 style
+
+    Returns
+    -------
+    list
+        note durations that equal num_notes notes of gp5_duration
+    """
+
     lengths = []
     while num_notes > 0 and gp5_duration > -2:
         if num_notes % 2 == 1:
@@ -48,12 +67,25 @@ def get_collapsed_lengths(num_notes, gp5_duration):
         gp5_duration -= 1
     for k in range(num_notes):
         lengths.append(gp5_duration)
-    lengths.reverse()
+    lengths.reverse()  # write longest notes first
     return lengths
 
 
-# replace beats with many short (tied) notes to notes with collapsed lengths
 def collapse_beats(beats, gp5_duration):
+    """ Replace beats with many (tied) notes of length gp5_duration with 
+    the minimum number of notes needed to represent the same note duration
+    
+    see also: get_collapsed_length
+    
+    Parameters
+    ----------
+    beats: list
+        GP5 style beat list (see guitar_pro.gp5_writer for more details)
+        This operation changes the list itself.
+    gp5_duration: int
+        GP5 style duration of the shortest note
+    """
+
     for x in range(len(beats)):
         for y in range(len(beats[x])):
             new_beats = []
@@ -82,7 +114,30 @@ def collapse_beats(beats, gp5_duration):
 
 
 def convert_midi2gp5(path_to_midi, outfile, shortest_note=0.25, init_tempo=120, time_signature=(4, 4),
-                     force_drums=False, default_instrument=25, verbose=False):
+                     force_drums=False, default_instrument=30, verbose=False):
+    """ Convert a MIDI file to GP5
+    
+    Parameters
+    ----------
+    path_to_midi: str
+        path to MIDI file
+    outfile: str
+        path to GP5 output file
+    shortest_note: float, optional
+        shortest note to be considered, in quarters. Default: 0.25 (16th notes)
+    init_tempo: int, optional
+        Tempo in beats per minute (bpm) to assume, if the file doesn't specify a tempo. Ignored otherwise.
+    time_signature: (int, int), optional
+        Time signature (numerator, denominator). Default: 4/4
+    force_drums: bool, optional
+        Force to be considered a drum track, even if the track is not on MIDI channel 10 as it should be due to
+        the MIDI standard. Default: False
+    default_instrument: int, optional
+        Instrument to use if not specified in the MIDI file. Default: 30 (distortion guitar)
+    verbose: bool, optional
+        Print raw info from the MIDI track. Default: False
+    """
+
     gp5_measures = []
     gp5_tracks = []
     gp5_beats = []

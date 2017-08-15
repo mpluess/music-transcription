@@ -7,18 +7,15 @@ from music_transcription.onset_detection.read_data import read_onset_times
 from music_transcription.pitch_detection.read_data import _read_onset_times_pitches
 from music_transcription.string_fret_detection.sequence_string_fret_detection import SequenceStringFretDetection
 
-path_to_wav = r'..\data\recordings\audio\instrumental_lead.wav'
-path_to_truth = r'..\data\recordings\annotation\instrumental_lead.xml'
-tempo = 144
-shortest_note = 0.5  # 1/8
+# path_to_wav = r'..\data\recordings\audio\instrumental_lead.wav'
+# path_to_truth = r'..\data\recordings\annotation\instrumental_lead.xml'
+# tempo = 144
+# shortest_note = 0.5  # 1/8
 
-# path_to_wav = r'..\data\recordings\audio\mim-riff1-short-slow.wav'
-# path_to_truth = r'..\data\recordings\annotation\mim-riff1-short-slow.xml'
-# tempo = 88
-# shortest_note = 0.25  # 1/16
-
-recording_name = os.path.basename(path_to_wav).rstrip('.wav')
-path_to_gp5 = '..\\tmp\\' + recording_name + '.gp5'
+path_to_wav = r'..\data\recordings\audio\mim-riff1-short-slow.wav'
+path_to_truth = r'..\data\recordings\annotation\mim-riff1-short-slow.xml'
+tempo = 88
+shortest_note = 0.25  # 1/16
 
 tuning = (64, 59, 55, 50, 45, 40)
 n_frets = 24
@@ -44,5 +41,11 @@ for i, measure in enumerate(beats):
         measures.append(Measure())
 
 tracks = [Track("Electric Guitar", len(tuning), tuning + (-1,), 1, 1, 2, n_frets, 0, (200, 55, 55, 0), 25)]
+
+
+recording_name = os.path.basename(path_to_wav)
+if recording_name.endswith('.wav'):
+    recording_name = recording_name[:-4]
+path_to_gp5 = '..\\tmp\\' + recording_name + '.gp5'
 
 write_gp5(measures, tracks, beats, tempo=tempo, outfile=path_to_gp5)

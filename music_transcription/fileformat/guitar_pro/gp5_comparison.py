@@ -5,6 +5,7 @@ from music_transcription.fileformat.guitar_pro.utils import Beat
 
 
 def retrieve_markers(f):
+    """ loops through guitar pro file and extracts all markers that were found """
     markers = []
     cur_marker = ''
     cur_len = 0
@@ -19,8 +20,13 @@ def retrieve_markers(f):
     return markers
 
 
-# compares meta data such as tempo, number of measures/tracks, length of marked parts
 def meta_comparison(f1, f2):
+    """ compares meta data such as tempo, number of measures/tracks, length of marked sections
+    
+    prints changes found
+    returns a list of markers that are present in both files
+    """
+
     for attr in ['tempo', 'nMeasures', 'nTracks']:
         if getattr(f1, attr) != getattr(f2, attr):
             print('attribute {} differs: {} -> {}'.format(attr, getattr(f1, attr), getattr(f2, attr)))
@@ -38,10 +44,11 @@ def meta_comparison(f1, f2):
                 break
         if m2_len == 0:
             print('new section in file 1: {} ({})'.format(m1[0], m1[1]))
-        elif m2_len != m1[1]:
-            print('section {} changed: {} -> {}'.format(m1[0], m1[1], m2_len))
         else:
-            common_markers.append(m1[0])  # TODO also add when they have different lengths?
+            common_markers.append(m1[0])
+            if m2_len != m1[1]:
+                print('section {} changed: {} -> {}'.format(m1[0], m1[1], m2_len))
+
     for m2 in markers2:
         print('new section in file 2: {} ({})'.format(m2[0], m2[1]))
 
@@ -49,6 +56,7 @@ def meta_comparison(f1, f2):
 
 
 def beats_equal(b1, b2, tuning):
+    """ compares pitches, duration and whether the notes are tied """
     n1 = []
     n2 = []
     for i in range(7):
@@ -62,6 +70,7 @@ def beats_equal(b1, b2, tuning):
 
 
 def beats_equal_positions(b1, b2):
+    """ compares every aspect of the notes, including their position on the fretboard, effects etc. """
     for i in range(7):
         if b1.notes[i] != b2.notes[i]:
             return False
@@ -69,10 +78,39 @@ def beats_equal_positions(b1, b2):
 
 
 def compare(f1, f2, t1, t2, tuning=(64, 59, 55, 50, 45, 40), common_markers=None, compare_positions=False):
+    """ compares two files 
+    
+    Parameters
+    ----------
+    f1: file
+        file 1
+    f2: file
+        file 2
+    t1: int
+        track in file 1 (starting with 1)
+    t2: int
+        track in file 2 (starting with 1)
+    tuning: tuple of :int:, optional
+        tuning of the tracks. Compare tracks with different tunings is not supported. Default: Standard Tuning
+    common_markers: list, optional
+        section markers which are present in both files for synchronisation. Should prevent marking the whole file as 
+        different if there was a measure inserted in the beginning.
+    compare_positions: bool, optional
+        respect positions, effects etc. when comparing notes. Default: only compare pitches, duration and tied notes
+
+    Returns
+    -------
+    (measures, beats)
+        list of measures and list of beats, containing 3 tracks (in the format required by gp5_writer):
+        common notes: contains all notes which are the same in both files
+        differences file 1: contains the notes of file 1 where there are differences
+        differences file 2: contains the notes of file 2 where there are differences
+    """
+
     # remap to zero based index
     t1 -= 1
     t2 -= 1
-    if common_markers is None:
+    if common_markers is None:  # avoid mutable default argument
         common_markers = []
 
     empty_measure = [([], []), ([], []), ([], [])]
@@ -204,4 +242,4 @@ def compare(f1, f2, t1, t2, tuning=(64, 59, 55, 50, 45, 40), common_markers=None
         current_measure = deepcopy(empty_measure)
         m2 += 1
 
-    return measures, beats  # compare_gp5.py "..\tmp\quintfall.gp5" "..\tmp\midi2gp5_output.gp5"
+    return measures, beats

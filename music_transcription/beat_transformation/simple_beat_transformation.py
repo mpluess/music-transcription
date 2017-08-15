@@ -12,7 +12,7 @@ class SimpleBeatTransformer(AbstractBeatTransformer):
     Beats per measure can be set, default is 4
     - no offset detection
     - only "full" notes are considered, no dotted, held (e.g. 3.5 quarters) nor triplets / n-tuples
-    - last note is 1 beat or until the end of measure
+    - last note is until the end of measure
     """
 
     def __init__(self, shortest_note=0.25, beats_per_measure=4.0):
@@ -28,7 +28,7 @@ class SimpleBeatTransformer(AbstractBeatTransformer):
         idx = 1
         for (onset, strings, frets) in zip(onset_times_seconds, list_of_string_lists, list_of_fret_lists):
             swap = 0  # notes ringing into next measure
-            m_remaining = self.beats_per_measure - m_len
+            m_remaining = self.beats_per_measure - m_len  # remaining beats that fit in current measure
 
             beat_diff = m_remaining  # default duration = rest of measure (e.g. for last note)
             if idx < len(onset_times_seconds):
@@ -37,10 +37,10 @@ class SimpleBeatTransformer(AbstractBeatTransformer):
             idx += 1
 
             beat_diff = round(beat_diff / self.shortest_note) * self.shortest_note  # round duration
-            if beat_diff == 0:
+            if beat_diff == 0:  # don't do anything if the note was too short to be of self.shortest_note
                 continue
 
-            if m_remaining < beat_diff:  # cannot be longer than until the end of current measure
+            if m_remaining < beat_diff:  # if a note is longer than until the end of current measure
                 swap = beat_diff - m_remaining
                 beat_diff = m_remaining
 
@@ -51,12 +51,14 @@ class SimpleBeatTransformer(AbstractBeatTransformer):
                 notes[string] = Note(fret)
                 notes_tied[string] = Note(fret, tied=True)
 
+            # build array of notes to write (e.g. a note length of 1.5 beats is written as quarter plus eighth)
             gp5_durations = self._split_beat_to_gp5_durations(beat_diff)
             while swap > 0:
                 swap_beats = min(swap, self.beats_per_measure)
                 swap -= swap_beats
                 gp5_durations += self._split_beat_to_gp5_durations(swap_beats)
 
+            # append actual notes. All except the first are written as tied notes
             tied = False
             for gp5_duration in gp5_durations:
                 m_len += self._convert_duration_gp5_to_beats(gp5_duration)
@@ -81,7 +83,7 @@ class SimpleBeatTransformer(AbstractBeatTransformer):
 
     @staticmethod
     def _create_measure():
-        return [([], [])]
+        return [([], [])]  # return new empty measure
 
     def _split_beat_to_gp5_durations(self, beats):
         gp5_durations = []

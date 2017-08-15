@@ -32,5 +32,4 @@ for tracknr in range(1, len(score)):
         else:
             print('{}: -- unknown event: {}'.format(ticks, event[0]))
 
-#print(score[0])
-
+# print(score[0])

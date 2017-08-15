@@ -5,6 +5,8 @@ from music_transcription.tempo_detection.abstract_tempo_detector import Abstract
 
 
 class AubioTempoDetector(AbstractTempoDetector):
+    """ Estimates the tempo of a piece using the aubio library (https://aubio.org/) """
+
     def __init__(self):
         super().__init__()
 

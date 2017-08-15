@@ -7,7 +7,7 @@ class AbstractBeatTransformer(metaclass=ABCMeta):
 
     @abstractmethod
     def transform(self, path_to_wav_file, onset_times_seconds, list_of_string_lists, list_of_fret_lists, tempo):
-        """Discretize onsets and transform them together with the tabbed chords to notes and measures.
+        """ Discretize onsets and transform them together with the tabbed chords to notes and measures.
 
         Parameters
         ----------

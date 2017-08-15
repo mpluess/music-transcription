@@ -271,8 +271,8 @@ class Grace:
         return not self.__eq__(other)
 
 
-# for the most common signatures, this method gives some possible beam8notes value
 def calc_beam8notes(numerator, denominator):
+    """ for the most common signatures, this method gives some possible beam8notes value """
     while denominator < 8:
         denominator *= 2
         numerator *= 2
@@ -292,4 +292,3 @@ def calc_beam8notes(numerator, denominator):
             b8n[i] += 1
 
     return b8n[0], b8n[1], b8n[2], b8n[3]
-
