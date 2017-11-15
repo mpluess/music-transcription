@@ -1,4 +1,4 @@
-# music-transcription
+# MuTr
 Transcribe guitar recordings in WAVE format to notes and tablatures (Guitar Pro 5 format).  
 Pipeline steps:
 - Onset detection
